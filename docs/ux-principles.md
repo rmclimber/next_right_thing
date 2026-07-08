@@ -1,0 +1,5 @@
+- Minimize cognitive load
+- Prefer recommendation over exploration
+- Show estimated time commitment
+- Mobile-friendly first
+- Avoid dashboard clutter
