@@ -5,7 +5,7 @@
 - architecture.md
 
 ## Phase 2: 
-- Define on vertical slice
+- Define one vertical slice
 
 ## Phase 3:
 Have Codex:
