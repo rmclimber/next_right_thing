@@ -5,3 +5,12 @@
 - Update documentation when behavior changes.
 - Do not introduce new dependencies without justification.
 - Favor simple deterministic implementations over AI-based solutions unless the feature explicitly requires them.
+
+When making implementation decisions, follow this precedence order:
+
+1. vision.md
+2. domain-model.md
+3. architecture.md
+4. Feature specification (docs/features/...)
+5. ENGINEERING.md
+6. Existing code
