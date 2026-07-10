@@ -1,0 +1,7 @@
+- Read vision.md, domain-model.md, and architecture.md before making significant changes.
+- Prefer modifying existing abstractions over introducing new ones.
+- Create an ADR for architectural changes.
+- Keep domain terminology consistent with domain-model.md.
+- Update documentation when behavior changes.
+- Do not introduce new dependencies without justification.
+- Favor simple deterministic implementations over AI-based solutions unless the feature explicitly requires them.
