@@ -5,6 +5,8 @@
 - Update documentation when behavior changes.
 - Do not introduce new dependencies without justification.
 - Favor simple deterministic implementations over AI-based solutions unless the feature explicitly requires them.
+- When in doubt, **ask rather than invent**.
+- Favor evolving existing abstractions over introducing new ones.
 
 When making implementation decisions, follow this precedence order:
 
