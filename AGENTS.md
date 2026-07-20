@@ -14,3 +14,13 @@ When making implementation decisions, follow this precedence order:
 4. Feature specification (docs/features/...)
 5. ENGINEERING.md
 6. Existing code
+
+## Standard Implementation loop
+
+- Read the relevant design documents.
+- Produce an implementation plan and identify ambiguities.
+- Wait for approval before major architectural changes.
+- Implement the smallest coherent task.
+- Run tests and fix failures.
+- Update documentation.
+- Summarize what changed and what remains.
