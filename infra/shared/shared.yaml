@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Shared infrastructure
+
+Resources:
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+
+Outputs:
+
+  ArtifactBucketName:
+    Value: !Ref ArtifactBucket

@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Bootstrap resources for GitHub Actions deployments
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Default: rmclimber
+
+  GitHubRepository:
+    Type: String
+    Default: next_right_thing
+
+Resources:
+
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - "ffffffffffffffffffffffffffffffffffffffff"
+
+  GitHubDeploymentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GitHubDeploymentRole
+
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+
+            Principal:
+              Federated: !Ref GitHubOidcProvider
+
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+
+              StringLike:
+                token.actions.githubusercontent.com:sub:
+                  !Sub repo:${GitHubOwner}/${GitHubRepository}:ref:refs/heads/main
+
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+Outputs:
+
+  DeploymentRoleArn:
+    Value: !GetAtt GitHubDeploymentRole.Arn
