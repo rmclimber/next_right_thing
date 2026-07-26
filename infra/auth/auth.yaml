@@ -7,12 +7,24 @@ Parameters:
     Default: nrt
     Description: Short project identifier.
 
+  CallbackUrl:
+    Type: String
+    Default: http://localhost:3000/api/auth/callback/cognito
+
+  LogoutUrl:
+    Type: String
+    Default: http://localhost:3000
+
+  UserPoolDomainPrefix:
+    Type: String
+    Default: nrt-dev-rmorris
+    Description: Globally unique prefix for the Cognito hosted UI domain.
+
 Resources:
   UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: !Sub "${ProjectName}-users"
-
       UsernameAttributes:
         - email
 
@@ -42,10 +54,71 @@ Resources:
       UsernameConfiguration:
         CaseSensitive: false
 
-      Tags:
+      UserPoolTags:
         Project: !Ref ProjectName
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+
+      ClientName: !Sub "${ProjectName}-web"
+
+      GenerateSecret: false
+
+      AllowedOAuthFlowsUserPoolClient: true
+
+      AllowedOAuthFlows:
+        - code
+
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+
+      SupportedIdentityProviders:
+        - COGNITO
+
+      CallbackURLs:
+        - !Ref CallbackUrl
+
+      LogoutURLs:
+        - !Ref LogoutUrl
+
+      PreventUserExistenceErrors: ENABLED
+
+      ExplicitAuthFlows:
+      - ALLOW_USER_SRP_AUTH
+      - ALLOW_REFRESH_TOKEN_AUTH
+
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref UserPoolDomainPrefix
+      UserPoolId: !Ref UserPool
 
 Outputs:
   UserPoolId:
     Description: Cognito User Pool ID
     Value: !Ref UserPool
+
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+
+  UserPoolDomain:
+    Description: Hosted UI domain
+    Value: !Sub "https://${UserPoolDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
+
+  HostedUILoginUrl:
+    Description: Base Hosted UI URL
+    Value: !Sub "https://${UserPoolDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login"
