@@ -49,6 +49,18 @@ Resources:
       Code:
         ZipFile: |
           import json
+          import boto3
+
+          cognito = boto3.client("cognito-idp")
+
+          def access_token_from(event):
+              header = event.get("headers", {}).get("authorization", "")
+              prefix = "Bearer "
+
+              if header.startswith(prefix):
+                  return header[len(prefix):]
+
+              return header
 
           def handler(event, context):
               claims = (
@@ -58,11 +70,20 @@ Resources:
                   .get("jwt", {})
                   .get("claims", {})
               )
+              access_token = access_token_from(event)
+              attributes = {}
+
+              if access_token:
+                  user = cognito.get_user(AccessToken=access_token)
+                  attributes = {
+                      attribute["Name"]: attribute["Value"]
+                      for attribute in user.get("UserAttributes", [])
+                  }
 
               body = {
                   "sub": claims.get("sub"),
-                  "email": claims.get("email"),
-                  "email_verified": claims.get("email_verified"),
+                  "email": attributes.get("email"),
+                  "email_verified": attributes.get("email_verified"),
               }
 
               return {
@@ -107,6 +128,8 @@ Resources:
       RouteKey: GET /me
       AuthorizationType: JWT
       AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
       Target: !Sub "integrations/${MeIntegration}"
 
   DefaultStage:

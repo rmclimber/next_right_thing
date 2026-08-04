@@ -9,7 +9,7 @@ Parameters:
 
   CallbackUrl:
     Type: String
-    Default: http://localhost:3000/api/auth/callback/cognito
+    Default: http://localhost:3000/dashboard
 
   LogoutUrl:
     Type: String
@@ -72,6 +72,7 @@ Resources:
         - code
 
       AllowedOAuthScopes:
+        - aws.cognito.signin.user.admin
         - openid
         - email
         - profile
