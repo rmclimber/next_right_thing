@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter @nrt/web dev",
+    "build": "pnpm --filter @nrt/web build",
+    "start": "pnpm --filter @nrt/web start"
+  }
+}
