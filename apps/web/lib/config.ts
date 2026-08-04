@@ -8,8 +8,7 @@ export type PublicConfig = {
   apiBaseUrl: string;
 };
 
-function requireEnv(name: string): string {
-  const value = process.env[name];
+function requireEnv(name: string, value: string | undefined): string {
 
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
@@ -28,14 +27,34 @@ function normalizeApiBaseUrl(url: string): string {
 
 export function getPublicConfig(): PublicConfig {
   return {
-    region: requireEnv("NEXT_PUBLIC_AWS_REGION"),
-    userPoolId: requireEnv("NEXT_PUBLIC_COGNITO_USER_POOL_ID"),
-    userPoolClientId: requireEnv("NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID"),
-    cognitoDomain: normalizeCognitoDomain(
-      requireEnv("NEXT_PUBLIC_COGNITO_DOMAIN"),
+    region: requireEnv(
+      "NEXT_PUBLIC_AWS_REGION",
+      process.env.NEXT_PUBLIC_AWS_REGION,
     ),
-    redirectSignIn: requireEnv("NEXT_PUBLIC_AUTH_REDIRECT_SIGN_IN"),
-    redirectSignOut: requireEnv("NEXT_PUBLIC_AUTH_REDIRECT_SIGN_OUT"),
-    apiBaseUrl: normalizeApiBaseUrl(requireEnv("NEXT_PUBLIC_API_BASE_URL")),
+    userPoolId: requireEnv(
+      "NEXT_PUBLIC_COGNITO_USER_POOL_ID",
+      process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID,
+    ),
+    userPoolClientId: requireEnv(
+      "NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID",
+      process.env.NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID,
+    ),
+    cognitoDomain: normalizeCognitoDomain(
+      requireEnv(
+        "NEXT_PUBLIC_COGNITO_DOMAIN",
+        process.env.NEXT_PUBLIC_COGNITO_DOMAIN,
+      ),
+    ),
+    redirectSignIn: requireEnv(
+      "NEXT_PUBLIC_AUTH_REDIRECT_SIGN_IN",
+      process.env.NEXT_PUBLIC_AUTH_REDIRECT_SIGN_IN,
+    ),
+    redirectSignOut: requireEnv(
+      "NEXT_PUBLIC_AUTH_REDIRECT_SIGN_OUT",
+      process.env.NEXT_PUBLIC_AUTH_REDIRECT_SIGN_OUT,
+    ),
+    apiBaseUrl: normalizeApiBaseUrl(
+      requireEnv("NEXT_PUBLIC_API_BASE_URL", process.env.NEXT_PUBLIC_API_BASE_URL),
+    ),
   };
 }
