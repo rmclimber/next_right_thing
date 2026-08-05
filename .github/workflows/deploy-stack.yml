@@ -22,6 +22,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+    
+      - name: Debug environment
+        run: |
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Stack suffix: $STACK_SUFFIX"
+          echo "Region: $AWS_REGION"
+          echo "Role ARN length: ${#ROLE}"
+        env:
+          ROLE: ${{ secrets.AWS_ROLE_ARN }}
+          AWS_REGION: ${{ vars.AWS_REGION }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
