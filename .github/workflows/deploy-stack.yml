@@ -1,0 +1,70 @@
+name: Deploy Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    environment: ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+
+    env:
+        STACK_SUFFIX: ${{ vars.STACK_SUFFIX }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
+      - name: Deploy Shared Stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name shared-${STACK_SUFFIX} \
+            --template-file infra/shared/shared.yaml
+
+      - name: Deploy Auth Stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name auth-${STACK_SUFFIX} \
+            --template-file infra/auth/auth.yaml
+
+      - name: Read Auth Stack Outputs
+        run: |
+          USER_POOL_ID=$(aws cloudformation describe-stacks \
+            --stack-name auth-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
+            --output text)
+
+          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
+            --stack-name auth-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
+            --output text)
+
+          echo "USER_POOL_ID=${USER_POOL_ID}" >> "$GITHUB_ENV"
+          echo "USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}" >> "$GITHUB_ENV"
+
+      - name: Deploy API Stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name api-${STACK_SUFFIX} \
+            --template-file infra/api/api.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              UserPoolId="${USER_POOL_ID}" \
+              UserPoolClientId="${USER_POOL_CLIENT_ID}"

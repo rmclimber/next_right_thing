@@ -1,65 +1,19 @@
-name: Deploy Infrastructure
-
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  deploy-dev:
+    uses: ./.github/workflows/deploy-stack.yml
+    with:
+      environment: development
+    secrets: inherit
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: us-west-2
-
-      - name: Verify AWS Identity
-        run: aws sts get-caller-identity
-
-      - name: Deploy Shared Stack
-        run: |
-          aws cloudformation deploy \
-            --stack-name shared \
-            --template-file infra/shared/shared.yaml
-
-      - name: Deploy Auth Stack
-        run: |
-          aws cloudformation deploy \
-            --stack-name auth \
-            --template-file infra/auth/auth.yaml
-
-      - name: Read Auth Stack Outputs
-        run: |
-          USER_POOL_ID=$(aws cloudformation describe-stacks \
-            --stack-name auth \
-            --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" \
-            --output text)
-
-          USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks \
-            --stack-name auth \
-            --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
-            --output text)
-
-          echo "USER_POOL_ID=${USER_POOL_ID}" >> "$GITHUB_ENV"
-          echo "USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}" >> "$GITHUB_ENV"
-
-      - name: Deploy API Stack
-        run: |
-          aws cloudformation deploy \
-            --stack-name api \
-            --template-file infra/api/api.yaml \
-            --capabilities CAPABILITY_NAMED_IAM \
-            --parameter-overrides \
-              UserPoolId="${USER_POOL_ID}" \
-              UserPoolClientId="${USER_POOL_CLIENT_ID}"
+  deploy-prod:
+    needs: deploy-dev
+    if: github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/deploy-stack.yml
+    with:
+      environment: production
+    secrets: inherit
