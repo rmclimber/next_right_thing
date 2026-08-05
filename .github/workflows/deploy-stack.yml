@@ -29,6 +29,7 @@ jobs:
           echo "Stack suffix: $STACK_SUFFIX"
           echo "Region: $AWS_REGION"
           echo "Role ARN length: ${#ROLE}"
+          echo "Role ARN: $ROLE"
         env:
           ROLE: ${{ secrets.AWS_ROLE_ARN }}
           AWS_REGION: ${{ vars.AWS_REGION }}
