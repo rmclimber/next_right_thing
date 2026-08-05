@@ -34,6 +34,9 @@ jobs:
           ROLE: ${{ secrets.AWS_ROLE_ARN }}
           AWS_REGION: ${{ vars.AWS_REGION }}
 
+      - name: Dump OIDC claims
+        uses: github/actions-oidc-debugger@v1
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
