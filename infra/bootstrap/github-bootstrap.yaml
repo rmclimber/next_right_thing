@@ -9,6 +9,9 @@ Parameters:
   GitHubRepository:
     Type: String
     Default: next_right_thing
+  
+  GitHubEnvironment:
+    Type: String
 
 Resources:
 
@@ -43,7 +46,7 @@ Resources:
 
               StringLike:
                 token.actions.githubusercontent.com:sub:
-                  !Sub repo:${GitHubOwner}/${GitHubRepository}:ref:refs/heads/main
+                  !Sub "repo:${GitHubOwner}/${GitHubRepository}:environment:${GitHubEnvironment}"
 
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AdministratorAccess
