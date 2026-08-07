@@ -18,6 +18,9 @@ jobs:
 
     env:
         STACK_SUFFIX: ${{ vars.STACK_SUFFIX }}
+        CALLBACK_URL: ${{ vars.CALLBACK_URL }}
+        LOGOUT_URL: ${{ vars.LOGOUT_URL }}
+        CORS_ALLOWED_ORIGIN: ${{ vars.CORS_ALLOWED_ORIGIN }}
 
     steps:
       - name: Checkout
