@@ -7,7 +7,7 @@ Parameters:
     Default: nrt
     Description: Short project identifier.
 
-  CorsAllowedOrigin:
+  CallbackUrl:
     Type: String
     Default: http://localhost:3000/dashboard
 
@@ -79,7 +79,7 @@ Resources:
         - COGNITO
 
       CallbackURLs:
-        - !Ref CorsAllowedOrigin
+        - !Ref CallbackUrl
 
       LogoutURLs:
         - !Ref LogoutUrl
