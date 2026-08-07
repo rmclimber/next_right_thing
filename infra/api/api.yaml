@@ -19,12 +19,15 @@ Parameters:
     Type: String
     Default: http://localhost:3000
     Description: Origin allowed to call the API from a browser.
+  
+  StackSuffix:
+    Type: String
 
 Resources:
   MeFunctionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub "${ProjectName}-api-me-function-role"
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-api-me-function-role"
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -47,7 +50,7 @@ Resources:
   MeFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub "${ProjectName}-api-me"
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-api-me"
       Runtime: python3.12
       Handler: index.handler
       Role: !GetAtt MeFunctionRole.Arn
@@ -100,7 +103,7 @@ Resources:
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
-      Name: !Sub "${ProjectName}-api"
+      Name: !Sub "${ProjectName}-${StackSuffix}-api"
       ProtocolType: HTTP
       CorsConfiguration:
         AllowHeaders:
@@ -119,7 +122,7 @@ Resources:
       AuthorizerType: JWT
       IdentitySource:
         - "$request.header.Authorization"
-      Name: !Sub "${ProjectName}-api-cognito-jwt"
+      Name: !Sub "${ProjectName}-${StackSuffix}-api-cognito-jwt"
       JwtConfiguration:
         Audience:
           - !Ref UserPoolClientId

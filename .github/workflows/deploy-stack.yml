@@ -94,6 +94,7 @@ jobs:
             --template-file infra/api/api.yaml \
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
+              StackSuffix="${STACK_SUFFIX}" \
               UserPoolId="${USER_POOL_ID}" \
               UserPoolClientId="${USER_POOL_CLIENT_ID}" \
               CorsAllowedOrigin="${CORS_ALLOWED_ORIGIN}"
