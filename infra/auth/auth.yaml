@@ -7,7 +7,7 @@ Parameters:
     Default: nrt
     Description: Short project identifier.
 
-  CallbackUrl:
+  CorsAllowedOrigin:
     Type: String
     Default: http://localhost:3000/dashboard
 
@@ -15,10 +15,8 @@ Parameters:
     Type: String
     Default: http://localhost:3000
 
-  UserPoolDomainPrefix:
+  StackSuffix:
     Type: String
-    Default: nrt-dev-rmorris
-    Description: Globally unique prefix for the Cognito hosted UI domain.
 
 Resources:
   UserPool:
@@ -81,7 +79,7 @@ Resources:
         - COGNITO
 
       CallbackURLs:
-        - !Ref CallbackUrl
+        - !Ref CorsAllowedOrigin
 
       LogoutURLs:
         - !Ref LogoutUrl
@@ -104,7 +102,7 @@ Resources:
   UserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
-      Domain: !Ref UserPoolDomainPrefix
+      Domain: !Sub "nrt-${StackSuffix}-rmorris"
       UserPoolId: !Ref UserPool
 
 Outputs:
@@ -118,8 +116,8 @@ Outputs:
 
   UserPoolDomain:
     Description: Hosted UI domain
-    Value: !Sub "https://${UserPoolDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
+    Value: !Sub "https://nrt-${StackSuffix}-rmorris.auth.${AWS::Region}.amazoncognito.com"
 
   HostedUILoginUrl:
     Description: Base Hosted UI URL
-    Value: !Sub "https://${UserPoolDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/login"
+    Value: !Sub "https://nrt-${StackSuffix}-rmorris.auth.${AWS::Region}.amazoncognito.com/login"

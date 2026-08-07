@@ -63,7 +63,11 @@ jobs:
         run: |
           aws cloudformation deploy \
             --stack-name auth-${STACK_SUFFIX} \
-            --template-file infra/auth/auth.yaml
+            --template-file infra/auth/auth.yaml \
+            --parameter-overrides \
+                StackSuffix="${STACK_SUFFIX}" \
+                CorsAllowedOrigin="${CORS_ALLOWED_ORIGIN}" \
+                LogoutUrl="${LOGOUT_URL}"
 
       - name: Read Auth Stack Outputs
         run: |
@@ -88,4 +92,5 @@ jobs:
             --capabilities CAPABILITY_NAMED_IAM \
             --parameter-overrides \
               UserPoolId="${USER_POOL_ID}" \
-              UserPoolClientId="${USER_POOL_CLIENT_ID}"
+              UserPoolClientId="${USER_POOL_CLIENT_ID}" \
+              CorsAllowedOrigin="${CORS_ALLOWED_ORIGIN}"
