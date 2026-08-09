@@ -25,8 +25,11 @@ A User is the top-level owner of almost all user-generated data.
 
 ### Goal
 
-A Goal represents something the user wants to accomplish
-professionally.
+A Goal represents a long-lived professional objective that guides
+the user's learning and work.
+
+Goals define what success looks like for the user. They are
+independent of any particular content source or recommendation.
 
 Examples include:
 
@@ -34,9 +37,11 @@ Examples include:
 - Stay current on California psychology regulations.
 - Prepare for AWS certification.
 
-Goals are long-lived.
-
-Goals influence recommendation ranking.
+Goals have a lifecycle:
+- Active
+- Paused
+- Completed
+- Archived
 
 Goals may be hierarchical in the future.
 
@@ -70,7 +75,7 @@ Every Content Item originates from exactly one Content Source.
 
 A Content Item may relate to one or more Topics.
 
-A Content Item may satisfy one or more Goals.
+A Content Item may be relevant to one or more Goals.
 
 ### Recommendation
 
@@ -123,7 +128,8 @@ Topics are independent of individual users.
 
 ### Professional Profile
 
-A Professional Profile represents a package of skills and interests. Each User
+A Professional Profile represents a professional role or identity
+through which a user consumes content and receives recommendations. Each User
 may ultimately have more than one Professional Profile. 
 
 Examples:
@@ -134,29 +140,89 @@ Examples:
 
 Professional Profiles are independent of individual users.
 
+### Recommendation Event
+
+A Recommendation Event records a single recommendation decision made for a User.
+
+Each Recommendation Event represents one execution of the recommendation engine.
+
+A Recommendation Event records:
+
+- the Action that was recommended
+- when it was recommended
+- why it was recommended
+- the context in which it was recommended
+- how the user responded
+
+Recommendation Events are immutable historical records, except for the user's eventual outcome.
+
+Recommendation Events are used to:
+
+- explain recommendations
+- improve future recommendations
+- avoid excessive repetition
+- evaluate recommendation quality
+
+### Action
+
+An Action represents a professional activity that a user could perform.
+
+Actions are the unit of work considered by the recommendation engine.
+
+Examples include:
+
+- Read an article.
+- Listen to a podcast episode.
+- Continue a learning path.
+- Review previously saved notes.
+- Work on an active project.
+- Complete a certification module.
+
+Actions may originate from Content Items, user Goals, application logic, or future integrations.
+
+Actions are independent of any individual recommendation.
+
+The same Action may be recommended many times over its lifetime.
+
+### Recommendation Outcome
+
+A Recommendation Outcome records the user's response to a Recommendation Event.
+
+Examples include:
+
+- Opened
+- Completed
+- Dismissed
+- Saved for later
+- Expired
+
+A Recommendation Outcome belongs to exactly one Recommendation Event.
+
 ## Relationships
 User
  ├── owns Goals
  ├── owns Professional Profiles
  ├── subscribes to Content Sources
- ├── receives Recommendations
- └── produces Interactions
+ ├── owns Recommendation Events
+ └── produces Recommmendation Outcomes
+
+Action
+ ├── may reference one or more Content Items
+ ├── may support one or more Goals
+ └── may be recommended many times
+
+Recommendation Event
+ ├── belongs to one User
+ ├── recommends one Action
+ └── records one Recommendation Outcome
 
 Content Source
- └── produces Content Items
+ └── publishes Content Items
 
 Content Item
  ├── belongs to Content Source
- ├── relates to Topics
- └── helps satisfy Goals
+ └── relates to Topics
 
-Recommendation
- ├── presented to User
- └── recommends Content Item
-
-Interaction
- ├── belongs to User
- └── references Recommendation
 
 ## Terminology
 
