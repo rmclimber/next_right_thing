@@ -1,0 +1,165 @@
+# Deployment
+
+## Overview
+
+NRT uses trunk-based development with separate AWS accounts for development and production.
+
+```
+main
+ │
+ ▼
+GitHub Actions
+ │
+ ▼
+Development Account
+ │
+ └── automatic
+
+workflow_dispatch
+ │
+ ▼
+Manual Approval
+ │
+ ▼
+Production Account
+```
+
+---
+
+## AWS Accounts
+
+Two AWS accounts are maintained.
+
+| Account | Purpose |
+|----------|---------|
+| Development | Continuous integration and feature development |
+| Production | Production deployments |
+
+Resources are never shared between accounts.
+
+---
+
+## GitHub Actions
+
+Deployment is performed using reusable GitHub Actions workflows.
+
+Primary workflows:
+
+```
+.github/workflows/deploy.yml
+.github/workflows/deploy-stack.yml
+```
+
+`deploy.yml` orchestrates deployments.
+
+`deploy-stack.yml` performs a deployment for a single environment.
+
+---
+
+## Authentication
+
+GitHub authenticates to AWS using OpenID Connect (OIDC).
+
+No long-lived AWS credentials are stored in GitHub.
+
+Each environment has:
+
+- IAM Role
+- GitHub Environment
+- Environment-specific variables
+
+---
+
+## GitHub Environments
+
+### Development
+
+Deployment occurs automatically on every push to `main`.
+
+Environment variables include:
+
+- AWS_ROLE_ARN
+- AWS_REGION
+- STACK_SUFFIX
+- CALLBACK_URL
+- LOGOUT_URL
+- CORS_ALLOWED_ORIGIN
+
+---
+
+### Production
+
+Production deployments are initiated using `workflow_dispatch`.
+
+Deployment requires manual approval through GitHub Environments.
+
+Production has its own independent configuration values.
+
+---
+
+## CloudFormation Stacks
+
+Each environment deploys:
+
+```
+shared
+auth
+api
+```
+
+using environment-specific stack names:
+
+Development:
+
+```
+shared-dev
+auth-dev
+api-dev
+```
+
+Production:
+
+```
+shared-prod
+auth-prod
+api-prod
+```
+
+Resource names are similarly parameterized using `StackSuffix`.
+
+---
+
+## Adding a New Stack
+
+To add infrastructure:
+
+1. Create a new CloudFormation template under `infra/`.
+2. Add a deployment step to `deploy-stack.yml`.
+3. Pass required parameters through GitHub Environment variables.
+4. Verify successful deployment in development.
+5. Promote to production using manual approval.
+
+---
+
+## Local Development
+
+CloudFormation outputs are used to configure local development.
+
+The primary values copied into `.env.local` are:
+
+- Cognito User Pool ID
+- Cognito Client ID
+- Cognito Hosted UI Domain
+- API URL
+
+Whenever authentication infrastructure changes, regenerate these values before testing locally.
+
+---
+
+## Deployment Philosophy
+
+Infrastructure should evolve only to support product features.
+
+The project intentionally avoids speculative infrastructure.
+
+New AWS services are introduced only when required by application functionality.
