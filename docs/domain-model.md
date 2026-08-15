@@ -25,25 +25,53 @@ A User is the top-level owner of almost all user-generated data.
 
 ### Goal
 
-A Goal represents a long-lived professional objective that guides
-the user's learning and work.
+A Goal represents a long-lived professional objective that guides the
+user's learning and work.
 
-Goals define what success looks like for the user. They are
-independent of any particular content source or recommendation.
+Goals define what success looks like for the user. They are independent
+of any particular Content Source, Content Item, or Recommendation.
 
 Examples include:
 
 - Learn Bayesian statistics.
+- Learn Bayesian statistics by March 2027.
 - Stay current on California psychology regulations.
 - Prepare for AWS certification.
 
-Goals have a lifecycle:
+A Goal has:
+
+- A title.
+- An optional description.
+- A lifecycle status.
+- An optional target date.
+- A creation timestamp.
+- A modification timestamp.
+- An optional completion timestamp.
+
+A Goal belongs to exactly one User. A User may have multiple Goals.
+
+Goals have the following lifecycle states:
+
 - Active
 - Paused
 - Completed
 - Archived
 
-Goals may be hierarchical in the future.
+A Goal is completed when the User declares that they have accomplished it.
+The system does not automatically mark a Goal as completed when its target
+date passes.
+
+A target date represents the date by which the User intends to accomplish
+the Goal. It is optional and represents a calendar date rather than a
+specific time.
+
+Goals may be associated with Topics. Topic associations provide a
+user-independent semantic bridge between Goals and Content, allowing NRT
+to discover potentially relevant Content Sources and Content Items without
+requiring expensive model inference for every recommendation.
+
+Goals may be hierarchical in the future. Hierarchical Goals are not part
+of the initial implementation.
 
 ### Content Source
 
