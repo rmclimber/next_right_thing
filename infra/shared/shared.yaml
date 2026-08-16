@@ -82,6 +82,15 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub "${AWS::StackName}-lambda"
+  
+  DatabaseSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DatabaseSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref LambdaSecurityGroup
 
 Outputs:
 
@@ -90,21 +99,33 @@ Outputs:
 
   VpcId:
     Value: !Ref Vpc
+    Export:
+      Name: !Sub "${AWS::StackName}-VpcId"
 
   PrivateSubnetOneId:
     Value: !Ref PrivateSubnetOne
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetOneId"
 
   PrivateSubnetTwoId:
     Value: !Ref PrivateSubnetTwo
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetTwoId"
 
   PrivateSubnetIds:
     Value: !Join
       - ','
       - - !Ref PrivateSubnetOne
         - !Ref PrivateSubnetTwo
+    Export:
+      Name: !Sub "${AWS::StackName}-PrivateSubnetIds"
 
   DatabaseSecurityGroupId:
     Value: !Ref DatabaseSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseSecurityGroupId"
 
   LambdaSecurityGroupId:
     Value: !Ref LambdaSecurityGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaSecurityGroupId"

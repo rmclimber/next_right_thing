@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: Database infrastructure for Next Right Thing.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: nrt
+    Description: Short project identifier.
+
+  StackSuffix:
+    Type: String
+
+  DatabaseName:
+    Type: String
+    Default: nrt
+    Description: Initial Aurora PostgreSQL database name.
+
+  DatabaseMinCapacity:
+    Type: Number
+    Default: 0.5
+    Description: Minimum Aurora Serverless v2 capacity units.
+
+  DatabaseMaxCapacity:
+    Type: Number
+    Default: 1
+    Description: Maximum Aurora Serverless v2 capacity units.
+
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnet IDs from the shared stack.
+
+  DatabaseSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Database security group ID from the shared stack.
+
+Resources:
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub "${ProjectName}-${StackSuffix} database private subnets"
+      SubnetIds: !Ref PrivateSubnetIds
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${StackSuffix}-database-subnets"
+
+  DatabaseCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      DBClusterIdentifier: !Sub "${ProjectName}-${StackSuffix}-database"
+      Engine: aurora-postgresql
+      EngineMode: provisioned
+      DatabaseName: !Ref DatabaseName
+      MasterUsername: nrt_admin
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref DatabaseSecurityGroupId
+      Port: 5432
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref DatabaseMinCapacity
+        MaxCapacity: !Ref DatabaseMaxCapacity
+      StorageEncrypted: true
+      BackupRetentionPeriod: 7
+      CopyTagsToSnapshot: true
+      DeletionProtection: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${StackSuffix}-database"
+
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBClusterIdentifier: !Ref DatabaseCluster
+      DBInstanceIdentifier: !Sub "${ProjectName}-${StackSuffix}-database-1"
+      DBInstanceClass: db.serverless
+      Engine: aurora-postgresql
+      PubliclyAccessible: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-${StackSuffix}-database-1"
+
+Outputs:
+  DatabaseClusterArn:
+    Description: Aurora PostgreSQL cluster ARN.
+    Value: !GetAtt DatabaseCluster.DBClusterArn
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseClusterArn"
+
+  DatabaseClusterIdentifier:
+    Description: Aurora PostgreSQL cluster identifier.
+    Value: !Ref DatabaseCluster
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseClusterIdentifier"
+
+  DatabaseEndpoint:
+    Description: Aurora PostgreSQL writer endpoint.
+    Value: !GetAtt DatabaseCluster.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseEndpoint"
+
+  DatabaseReaderEndpoint:
+    Description: Aurora PostgreSQL reader endpoint.
+    Value: !GetAtt DatabaseCluster.ReadEndpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseReaderEndpoint"
+
+  DatabasePort:
+    Description: Aurora PostgreSQL port.
+    Value: !GetAtt DatabaseCluster.Endpoint.Port
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabasePort"
+
+  DatabaseName:
+    Description: Initial database name.
+    Value: !Ref DatabaseName
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseName"
+
+  DatabaseSecretArn:
+    Description: Secrets Manager ARN for the generated database credentials.
+    Value: !GetAtt DatabaseCluster.MasterUserSecret.SecretArn
+    Export:
+      Name: !Sub "${AWS::StackName}-DatabaseSecretArn"
