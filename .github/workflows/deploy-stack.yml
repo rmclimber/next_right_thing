@@ -21,31 +21,12 @@ jobs:
         CALLBACK_URL: ${{ vars.CALLBACK_URL }}
         LOGOUT_URL: ${{ vars.LOGOUT_URL }}
         CORS_ALLOWED_ORIGIN: ${{ vars.CORS_ALLOWED_ORIGIN }}
+        DATABASE_MIN_CAPACITY: ${{ vars.DATABASE_MIN_CAPACITY }}
+        DATABASE_MAX_CAPACITY: ${{ vars.DATABASE_MAX_CAPACITY }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-    
-      - name: Debug environment
-        run: |
-          echo "Environment: ${{ inputs.environment }}"
-          echo "Stack suffix: $STACK_SUFFIX"
-          echo "Region: $AWS_REGION"
-          echo "Role ARN length: ${#ROLE}"
-          echo "Role ARN: $ROLE"
-        env:
-          ROLE: ${{ secrets.AWS_ROLE_ARN }}
-          AWS_REGION: ${{ vars.AWS_REGION }}
-
-      - name: Dump OIDC token payload
-        shell: bash
-        run: |
-            TOKEN=$(curl -s \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" \
-            | jq -r '.value')
-
-            echo "$TOKEN" | cut -d '.' -f2 | base64 -d || true
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -61,6 +42,33 @@ jobs:
           aws cloudformation deploy \
             --stack-name shared-${STACK_SUFFIX} \
             --template-file infra/shared/shared.yaml
+
+      - name: Read Shared Stack Outputs
+        run: |
+          PRIVATE_SUBNET_IDS=$(aws cloudformation describe-stacks \
+            --stack-name shared-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetIds'].OutputValue" \
+            --output text)
+
+          DATABASE_SECURITY_GROUP_ID=$(aws cloudformation describe-stacks \
+            --stack-name shared-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecurityGroupId'].OutputValue" \
+            --output text)
+
+          echo "PRIVATE_SUBNET_IDS=${PRIVATE_SUBNET_IDS}" >> "$GITHUB_ENV"
+          echo "DATABASE_SECURITY_GROUP_ID=${DATABASE_SECURITY_GROUP_ID}" >> "$GITHUB_ENV"
+
+      - name: Deploy Database Stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name database-${STACK_SUFFIX} \
+            --template-file infra/database/database.yaml \
+            --parameter-overrides \
+              StackSuffix="${STACK_SUFFIX}" \
+              DatabaseMinCapacity="${DATABASE_MIN_CAPACITY:-0.5}" \
+              DatabaseMaxCapacity="${DATABASE_MAX_CAPACITY:-1}" \
+              PrivateSubnetIds="${PRIVATE_SUBNET_IDS}" \
+              DatabaseSecurityGroupId="${DATABASE_SECURITY_GROUP_ID}"
 
       - name: Deploy Auth Stack
         run: |
