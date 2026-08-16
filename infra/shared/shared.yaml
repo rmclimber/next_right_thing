@@ -7,7 +7,104 @@ Resources:
   ArtifactBucket:
     Type: AWS::S3::Bucket
 
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-vpc"
+
+  PrivateSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.0.0/20
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-private-1"
+
+  PrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: 10.0.16.0/20
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-private-2"
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-private"
+
+  PrivateSubnetOneRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetOne
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnetTwoRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetTwo
+      RouteTableId: !Ref PrivateRouteTable
+
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Database access security group
+      VpcId: !Ref Vpc
+      SecurityGroupIngress: []
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-database"
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda database access security group
+      VpcId: !Ref Vpc
+      SecurityGroupIngress: []
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-lambda"
+
 Outputs:
 
   ArtifactBucketName:
     Value: !Ref ArtifactBucket
+
+  VpcId:
+    Value: !Ref Vpc
+
+  PrivateSubnetOneId:
+    Value: !Ref PrivateSubnetOne
+
+  PrivateSubnetTwoId:
+    Value: !Ref PrivateSubnetTwo
+
+  PrivateSubnetIds:
+    Value: !Join
+      - ','
+      - - !Ref PrivateSubnetOne
+        - !Ref PrivateSubnetTwo
+
+  DatabaseSecurityGroupId:
+    Value: !Ref DatabaseSecurityGroup
+
+  LambdaSecurityGroupId:
+    Value: !Ref LambdaSecurityGroup
