@@ -79,8 +79,6 @@ Resources:
 
             body = {
                 "sub": claims.get("sub"),
-                "email": claims.get("email"),
-                "email_verified": claims.get("email_verified"),
             }
 
             return {

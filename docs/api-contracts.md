@@ -9,8 +9,6 @@ Response:
 
 ```json
 {
-  "sub": "cognito-user-sub",
-  "email": "user@example.com",
-  "email_verified": "true"
+  "sub": "cognito-user-sub"
 }
 ```

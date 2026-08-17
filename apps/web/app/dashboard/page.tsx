@@ -9,8 +9,6 @@ import { getPublicConfig } from "@/lib/config";
 
 type MeResponse = {
   sub: string | null;
-  email: string | null;
-  email_verified: string | null;
 };
 
 type DashboardState =
@@ -103,16 +101,8 @@ export default function Dashboard() {
         {state.status === "ready" ? (
           <dl className="identity-list">
             <div>
-              <dt>Email</dt>
-              <dd>{state.me.email ?? "Not returned"}</dd>
-            </div>
-            <div>
               <dt>Sub</dt>
               <dd>{state.me.sub ?? "Not returned"}</dd>
-            </div>
-            <div>
-              <dt>Email verified</dt>
-              <dd>{state.me.email_verified ?? "Not returned"}</dd>
             </div>
           </dl>
         ) : null}
