@@ -59,8 +59,6 @@ Resources:
           import json
           import boto3
 
-          cognito = boto3.client("cognito-idp")
-
           def access_token_from(event):
               header = event.get("headers", {}).get("authorization", "")
               prefix = "Bearer "
@@ -71,34 +69,25 @@ Resources:
               return header
 
           def handler(event, context):
-              claims = (
-                  event
-                  .get("requestContext", {})
-                  .get("authorizer", {})
-                  .get("jwt", {})
-                  .get("claims", {})
-              )
-              access_token = access_token_from(event)
-              attributes = {}
+            claims = (
+                event
+                .get("requestContext", {})
+                .get("authorizer", {})
+                .get("jwt", {})
+                .get("claims", {})
+            )
 
-              if access_token:
-                  user = cognito.get_user(AccessToken=access_token)
-                  attributes = {
-                      attribute["Name"]: attribute["Value"]
-                      for attribute in user.get("UserAttributes", [])
-                  }
+            body = {
+                "sub": claims.get("sub"),
+                "email": claims.get("email"),
+                "email_verified": claims.get("email_verified"),
+            }
 
-              body = {
-                  "sub": claims.get("sub"),
-                  "email": attributes.get("email"),
-                  "email_verified": attributes.get("email_verified"),
-              }
-
-              return {
-                  "statusCode": 200,
-                  "headers": {"content-type": "application/json"},
-                  "body": json.dumps(body),
-              }
+            return {
+                "statusCode": 200,
+                "headers": {"content-type": "application/json"},
+                "body": json.dumps(body),
+            }
 
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
