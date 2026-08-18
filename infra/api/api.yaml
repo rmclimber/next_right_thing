@@ -23,6 +23,14 @@ Parameters:
   StackSuffix:
     Type: String
 
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnet IDs for VPC-attached Lambda functions.
+
+  LambdaSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group ID for VPC-attached Lambda functions.
+
 Resources:
   MeFunctionRole:
     Type: AWS::IAM::Role
@@ -46,6 +54,18 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: LambdaVpcNetworking
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
 
   MeFunction:
     Type: AWS::Lambda::Function
@@ -54,6 +74,10 @@ Resources:
       Runtime: python3.12
       Handler: index.handler
       Role: !GetAtt MeFunctionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
       Code:
         ZipFile: |
           import json
