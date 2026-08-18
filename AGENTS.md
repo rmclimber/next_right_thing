@@ -26,3 +26,15 @@ When making implementation decisions, follow this precedence order:
 - Run tests and fix failures.
 - Update documentation.
 - Summarize what changed and what remains.
+
+## AWS CLI
+
+Do not execute AWS CLI (`aws`) commands from Codex.
+
+The user's AWS SSO credentials work in their normal PowerShell environment, but AWS CLI calls from Codex fail TLS certificate validation.
+
+If an AWS CLI operation is required:
+1. Do not attempt to run it.
+2. Provide the exact command for the user to run in PowerShell.
+3. State what output/result you need back.
+4. Continue with other work that does not require the AWS CLI.

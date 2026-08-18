@@ -55,8 +55,14 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecurityGroupId'].OutputValue" \
             --output text)
 
+          LAMBDA_SECURITY_GROUP_ID=$(aws cloudformation describe-stacks \
+            --stack-name shared-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='LambdaSecurityGroupId'].OutputValue" \
+            --output text)
+
           echo "PRIVATE_SUBNET_IDS=${PRIVATE_SUBNET_IDS}" >> "$GITHUB_ENV"
           echo "DATABASE_SECURITY_GROUP_ID=${DATABASE_SECURITY_GROUP_ID}" >> "$GITHUB_ENV"
+          echo "LAMBDA_SECURITY_GROUP_ID=${LAMBDA_SECURITY_GROUP_ID}" >> "$GITHUB_ENV"
 
       - name: Deploy Database Stack
         run: |
@@ -105,4 +111,6 @@ jobs:
               StackSuffix="${STACK_SUFFIX}" \
               UserPoolId="${USER_POOL_ID}" \
               UserPoolClientId="${USER_POOL_CLIENT_ID}" \
-              CorsAllowedOrigin="${CORS_ALLOWED_ORIGIN}"
+              CorsAllowedOrigin="${CORS_ALLOWED_ORIGIN}" \
+              PrivateSubnetIds="${PRIVATE_SUBNET_IDS}" \
+              LambdaSecurityGroupId="${LAMBDA_SECURITY_GROUP_ID}"
