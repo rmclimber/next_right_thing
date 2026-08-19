@@ -76,6 +76,33 @@ jobs:
               PrivateSubnetIds="${PRIVATE_SUBNET_IDS}" \
               DatabaseSecurityGroupId="${DATABASE_SECURITY_GROUP_ID}"
 
+      - name: Read Database Stack Outputs
+        run: |
+          DATABASE_ENDPOINT=$(aws cloudformation describe-stacks \
+            --stack-name database-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" \
+            --output text)
+
+          DATABASE_PORT=$(aws cloudformation describe-stacks \
+            --stack-name database-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='DatabasePort'].OutputValue" \
+            --output text)
+
+          DATABASE_NAME=$(aws cloudformation describe-stacks \
+            --stack-name database-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='DatabaseName'].OutputValue" \
+            --output text)
+
+          DATABASE_SECRET_ARN=$(aws cloudformation describe-stacks \
+            --stack-name database-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='DatabaseSecretArn'].OutputValue" \
+            --output text)
+
+          echo "DATABASE_ENDPOINT=${DATABASE_ENDPOINT}" >> "$GITHUB_ENV"
+          echo "DATABASE_PORT=${DATABASE_PORT}" >> "$GITHUB_ENV"
+          echo "DATABASE_NAME=${DATABASE_NAME}" >> "$GITHUB_ENV"
+          echo "DATABASE_SECRET_ARN=${DATABASE_SECRET_ARN}" >> "$GITHUB_ENV"
+
       - name: Deploy Auth Stack
         run: |
           aws cloudformation deploy \
@@ -113,4 +140,8 @@ jobs:
               UserPoolClientId="${USER_POOL_CLIENT_ID}" \
               CorsAllowedOrigin="${CORS_ALLOWED_ORIGIN}" \
               PrivateSubnetIds="${PRIVATE_SUBNET_IDS}" \
-              LambdaSecurityGroupId="${LAMBDA_SECURITY_GROUP_ID}"
+              LambdaSecurityGroupId="${LAMBDA_SECURITY_GROUP_ID}" \
+              DatabaseEndpoint="${DATABASE_ENDPOINT}" \
+              DatabasePort="${DATABASE_PORT}" \
+              DatabaseName="${DATABASE_NAME}" \
+              DatabaseSecretArn="${DATABASE_SECRET_ARN}"
