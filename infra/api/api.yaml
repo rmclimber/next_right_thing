@@ -19,6 +19,22 @@ Parameters:
     Type: String
     Default: http://localhost:3000
     Description: Origin allowed to call the API from a browser.
+
+  DatabaseEndpoint:
+    Type: String
+    Description: Aurora PostgreSQL writer endpoint.
+
+  DatabasePort:
+    Type: Number
+    Description: Aurora PostgreSQL port.
+
+  DatabaseName:
+    Type: String
+    Description: Aurora PostgreSQL database name.
+
+  DatabaseSecretArn:
+    Type: String
+    Description: Secrets Manager ARN containing database credentials.
   
   StackSuffix:
     Type: String
@@ -66,6 +82,10 @@ Resources:
                   - ec2:AssignPrivateIpAddresses
                   - ec2:UnassignPrivateIpAddresses
                 Resource: "*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
 
   MeFunction:
     Type: AWS::Lambda::Function
@@ -78,6 +98,12 @@ Resources:
         SecurityGroupIds:
           - !Ref LambdaSecurityGroupId
         SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_HOST: !Ref DatabaseEndpoint
+          DB_PORT: !Ref DatabasePort
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
       Code:
         ZipFile: |
           import json
