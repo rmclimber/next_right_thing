@@ -71,7 +71,7 @@ jobs:
             --template-file infra/database/database.yaml \
             --parameter-overrides \
               StackSuffix="${STACK_SUFFIX}" \
-              DatabaseMinCapacity="${DATABASE_MIN_CAPACITY:-0.5}" \
+              DatabaseMinCapacity="${DATABASE_MIN_CAPACITY:-0}" \
               DatabaseMaxCapacity="${DATABASE_MAX_CAPACITY:-1}" \
               PrivateSubnetIds="${PRIVATE_SUBNET_IDS}" \
               DatabaseSecurityGroupId="${DATABASE_SECURITY_GROUP_ID}"
