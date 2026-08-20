@@ -47,6 +47,14 @@ Parameters:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security group ID for VPC-attached Lambda functions.
 
+  MeFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the MeFunction deployment package.
+
+  MeFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the MeFunction deployment package.
+
 Resources:
   MeFunctionRole:
     Type: AWS::IAM::Role
@@ -92,7 +100,7 @@ Resources:
     Properties:
       FunctionName: !Sub "${ProjectName}-${StackSuffix}-api-me"
       Runtime: python3.12
-      Handler: index.handler
+      Handler: nrt_backend.lambdas.me.handler.handler
       Role: !GetAtt MeFunctionRole.Arn
       VpcConfig:
         SecurityGroupIds:
@@ -105,37 +113,8 @@ Resources:
           DB_NAME: !Ref DatabaseName
           DB_SECRET_ARN: !Ref DatabaseSecretArn
       Code:
-        ZipFile: |
-          import json
-          import boto3
-
-          def access_token_from(event):
-              header = event.get("headers", {}).get("authorization", "")
-              prefix = "Bearer "
-
-              if header.startswith(prefix):
-                  return header[len(prefix):]
-
-              return header
-
-          def handler(event, context):
-            claims = (
-                event
-                .get("requestContext", {})
-                .get("authorizer", {})
-                .get("jwt", {})
-                .get("claims", {})
-            )
-
-            body = {
-                "sub": claims.get("sub"),
-            }
-
-            return {
-                "statusCode": 200,
-                "headers": {"content-type": "application/json"},
-                "body": json.dumps(body),
-            }
+        S3Bucket: !Ref MeFunctionCodeS3Bucket
+        S3Key: !Ref MeFunctionCodeS3Key
 
   HttpApi:
     Type: AWS::ApiGatewayV2::Api

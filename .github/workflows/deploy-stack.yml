@@ -60,9 +60,15 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='LambdaSecurityGroupId'].OutputValue" \
             --output text)
 
+          ARTIFACT_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name shared-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='ArtifactBucketName'].OutputValue" \
+            --output text)
+
           echo "PRIVATE_SUBNET_IDS=${PRIVATE_SUBNET_IDS}" >> "$GITHUB_ENV"
           echo "DATABASE_SECURITY_GROUP_ID=${DATABASE_SECURITY_GROUP_ID}" >> "$GITHUB_ENV"
           echo "LAMBDA_SECURITY_GROUP_ID=${LAMBDA_SECURITY_GROUP_ID}" >> "$GITHUB_ENV"
+          echo "ARTIFACT_BUCKET=${ARTIFACT_BUCKET}" >> "$GITHUB_ENV"
 
       - name: Deploy Database Stack
         run: |
@@ -128,6 +134,24 @@ jobs:
           echo "USER_POOL_ID=${USER_POOL_ID}" >> "$GITHUB_ENV"
           echo "USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}" >> "$GITHUB_ENV"
 
+      - name: Build Me Lambda Artifact
+        run: |
+          ME_ARTIFACT_KEY="lambda/me/${GITHUB_SHA}.zip"
+          ME_ARTIFACT_PATH="dist/lambda/me.zip"
+
+          rm -rf dist/lambda/me "${ME_ARTIFACT_PATH}"
+          mkdir -p dist/lambda/me
+          cp -R backend/nrt_backend dist/lambda/me/
+
+          (cd dist/lambda/me && zip -r ../me.zip nrt_backend)
+
+          echo "ME_ARTIFACT_KEY=${ME_ARTIFACT_KEY}" >> "$GITHUB_ENV"
+          echo "ME_ARTIFACT_PATH=${ME_ARTIFACT_PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload Me Lambda Artifact
+        run: |
+          aws s3 cp "${ME_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${ME_ARTIFACT_KEY}"
+
       - name: Deploy API Stack
         run: |
           aws cloudformation deploy \
@@ -144,4 +168,6 @@ jobs:
               DatabaseEndpoint="${DATABASE_ENDPOINT}" \
               DatabasePort="${DATABASE_PORT}" \
               DatabaseName="${DATABASE_NAME}" \
-              DatabaseSecretArn="${DATABASE_SECRET_ARN}"
+              DatabaseSecretArn="${DATABASE_SECRET_ARN}" \
+              MeFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              MeFunctionCodeS3Key="${ME_ARTIFACT_KEY}"

@@ -104,6 +104,7 @@ Each environment deploys:
 ```
 shared
 auth
+database
 api
 ```
 
@@ -114,6 +115,7 @@ Development:
 ```
 shared-dev
 auth-dev
+database-dev
 api-dev
 ```
 
@@ -122,10 +124,16 @@ Production:
 ```
 shared-prod
 auth-prod
+database-prod
 api-prod
 ```
 
 Resource names are similarly parameterized using `StackSuffix`.
+
+The API stack uses Lambda deployment packages uploaded to the artifact bucket
+created by the corresponding shared stack. The `/me` package key is derived
+from the Git commit SHA so repeated deployments do not accidentally reuse stale
+Lambda code.
 
 ---
 
