@@ -101,7 +101,7 @@ Resources:
       FunctionName: !Sub "${ProjectName}-${StackSuffix}-api-me"
       Runtime: python3.12
       Handler: nrt_backend.lambdas.me.handler.handler
-      Timeout: 25
+      Timeout: 45
       Role: !GetAtt MeFunctionRole.Arn
       VpcConfig:
         SecurityGroupIds:
