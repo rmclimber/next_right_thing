@@ -68,7 +68,7 @@ class DatabaseTests(unittest.TestCase):
             dbname="nrt",
             user="db-user",
             password="db-password",
-            connect_timeout=15,
+            connect_timeout=30,
         )
 
 

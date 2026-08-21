@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Python backend package for Next Right Thing."
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.13,<2",
     "psycopg[binary]>=3.2,<4",
 ]
 
