@@ -53,9 +53,9 @@ class DatabaseTests(unittest.TestCase):
 
         self.assertIs(result, connection)
         config_class.assert_called_once_with(
-            connect_timeout=3,
-            read_timeout=3,
-            retries={"max_attempts": 2},
+            connect_timeout=2,
+            read_timeout=2,
+            retries={"max_attempts": 1},
         )
         boto3.client.assert_called_once_with(
             "secretsmanager",
@@ -68,7 +68,7 @@ class DatabaseTests(unittest.TestCase):
             dbname="nrt",
             user="db-user",
             password="db-password",
-            connect_timeout=3,
+            connect_timeout=2,
         )
 
 
