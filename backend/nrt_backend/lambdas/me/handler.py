@@ -1,4 +1,10 @@
 import json
+import logging
+
+from nrt_backend.shared.database import connect
+
+
+logger = logging.getLogger(__name__)
 
 
 def access_token_from(event):
@@ -19,9 +25,32 @@ def handler(event, context):
         .get("jwt", {})
         .get("claims", {})
     )
+    sub = claims.get("sub")
+
+    connection = None
+
+    try:
+        connection = connect()
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1;")
+    except Exception:
+        logger.exception("Database connectivity smoke test failed")
+
+        return {
+            "statusCode": 500,
+            "headers": {"content-type": "application/json"},
+            "body": json.dumps({"message": "Internal server error"}),
+        }
+    finally:
+        if connection is not None:
+            connection.close()
 
     body = {
-        "sub": claims.get("sub"),
+        "sub": sub,
+        "database": {
+            "connected": True,
+        },
     }
 
     return {

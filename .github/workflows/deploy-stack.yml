@@ -28,6 +28,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -141,9 +146,10 @@ jobs:
 
           rm -rf dist/lambda/me "${ME_ARTIFACT_PATH}"
           mkdir -p dist/lambda/me
-          cp -R backend/nrt_backend dist/lambda/me/
+          python -m pip install --upgrade pip
+          python -m pip install --target dist/lambda/me ./backend
 
-          (cd dist/lambda/me && zip -r ../me.zip nrt_backend)
+          (cd dist/lambda/me && zip -r ../me.zip .)
 
           echo "ME_ARTIFACT_KEY=${ME_ARTIFACT_KEY}" >> "$GITHUB_ENV"
           echo "ME_ARTIFACT_PATH=${ME_ARTIFACT_PATH}" >> "$GITHUB_ENV"
