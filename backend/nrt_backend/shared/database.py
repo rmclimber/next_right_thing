@@ -63,5 +63,5 @@ def connect():
         dbname=config["dbname"],
         user=credentials["user"],
         password=credentials["password"],
-        connect_timeout=2,
+        connect_timeout=15,
     )
