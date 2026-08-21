@@ -34,6 +34,18 @@ Parameters:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Database security group ID from the shared stack.
 
+  LambdaSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group ID for VPC-attached Lambda functions.
+
+  MigrationFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the migration Lambda deployment package.
+
+  MigrationFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the migration Lambda deployment package.
+
 Resources:
   DatabaseSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -80,6 +92,71 @@ Resources:
         - Key: Name
           Value: !Sub "${ProjectName}-${StackSuffix}-database-1"
 
+  MigrationFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-database-migration-function-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: LambdaVpcNetworking
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+        - PolicyName: DatabaseSecretRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !GetAtt DatabaseCluster.MasterUserSecret.SecretArn
+
+  MigrationFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-database-migrate"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.migrate.handler.handler
+      Timeout: 300
+      Role: !GetAtt MigrationFunctionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_HOST: !GetAtt DatabaseCluster.Endpoint.Address
+          DB_PORT: !GetAtt DatabaseCluster.Endpoint.Port
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !GetAtt DatabaseCluster.MasterUserSecret.SecretArn
+      Code:
+        S3Bucket: !Ref MigrationFunctionCodeS3Bucket
+        S3Key: !Ref MigrationFunctionCodeS3Key
+
 Outputs:
   DatabaseClusterArn:
     Description: Aurora PostgreSQL cluster ARN.
@@ -122,3 +199,9 @@ Outputs:
     Value: !GetAtt DatabaseCluster.MasterUserSecret.SecretArn
     Export:
       Name: !Sub "${AWS::StackName}-DatabaseSecretArn"
+
+  MigrationFunctionName:
+    Description: Lambda function that applies Alembic migrations.
+    Value: !Ref MigrationFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-MigrationFunctionName"

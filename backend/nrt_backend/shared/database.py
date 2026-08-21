@@ -20,7 +20,7 @@ def _required_env(name):
     return value
 
 
-def _database_config():
+def database_config():
     return {
         "host": _required_env("DB_HOST"),
         "port": int(_required_env("DB_PORT")),
@@ -29,7 +29,7 @@ def _database_config():
     }
 
 
-def _database_credentials(secret_arn):
+def database_credentials(secret_arn):
     boto3 = import_module("boto3")
     botocore_config = import_module("botocore.config")
     logger.warning("Retrieving database credentials from Secrets Manager")
@@ -51,9 +51,13 @@ def _database_credentials(secret_arn):
     }
 
 
+_database_config = database_config
+_database_credentials = database_credentials
+
+
 def connect():
-    config = _database_config()
-    credentials = _database_credentials(config["secret_arn"])
+    config = database_config()
+    credentials = database_credentials(config["secret_arn"])
     psycopg = import_module("psycopg")
 
     logger.warning("Opening PostgreSQL connection")

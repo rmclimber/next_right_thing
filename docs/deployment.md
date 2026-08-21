@@ -135,6 +135,20 @@ created by the corresponding shared stack. The `/me` package key is derived
 from the Git commit SHA so repeated deployments do not accidentally reuse stale
 Lambda code.
 
+The database stack also deploys a dedicated migration Lambda. Its deployment
+package includes `nrt_backend`, Alembic configuration, migration revisions, and
+PostgreSQL runtime dependencies. The package key is derived from the Git commit
+SHA.
+
+After the database stack deploys, `deploy-stack.yml` invokes the migration
+Lambda synchronously for the current `STACK_SUFFIX`. If Alembic fails, the
+Lambda invocation fails and the environment deployment stops. Development and
+production therefore run migrations against their own Aurora databases behind
+their existing GitHub Environment boundaries.
+
+CloudFormation manages Aurora infrastructure. PostgreSQL application schema is
+managed by Alembic migrations under `backend/migrations`.
+
 ---
 
 ## Adding a New Stack

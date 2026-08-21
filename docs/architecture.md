@@ -85,6 +85,23 @@ Responsibilities:
 Responsibilities:
 
 - Persistent application state
+- Application schema version tracking through Alembic migrations
+
+CloudFormation manages the Aurora PostgreSQL infrastructure. PostgreSQL
+application schema changes are managed separately by versioned Alembic
+migrations in the backend project.
+
+### Database Migrations
+
+Responsibilities:
+
+- Apply versioned PostgreSQL schema migrations
+- Run inside the shared VPC using the Lambda database security group
+- Use Secrets Manager for database credentials
+
+Database migrations are executed by a dedicated invocation-only Lambda during
+environment deployment. The migration Lambda is not attached to API Gateway and
+is not part of normal application request handling.
 
 ## Data Flow
 ### Example 1
