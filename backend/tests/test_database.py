@@ -21,6 +21,10 @@ class DatabaseTests(unittest.TestCase):
         boto3 = Mock()
         boto3.client.return_value = secrets_client
 
+        config_class = Mock()
+        botocore_config = Mock()
+        botocore_config.Config = config_class
+
         psycopg = Mock()
         connection = Mock()
         psycopg.connect.return_value = connection
@@ -28,6 +32,7 @@ class DatabaseTests(unittest.TestCase):
         def import_module(name):
             return {
                 "boto3": boto3,
+                "botocore.config": botocore_config,
                 "psycopg": psycopg,
             }[name]
 
@@ -47,7 +52,15 @@ class DatabaseTests(unittest.TestCase):
             result = database.connect()
 
         self.assertIs(result, connection)
-        boto3.client.assert_called_once_with("secretsmanager")
+        config_class.assert_called_once_with(
+            connect_timeout=3,
+            read_timeout=3,
+            retries={"max_attempts": 2},
+        )
+        boto3.client.assert_called_once_with(
+            "secretsmanager",
+            config=config_class.return_value,
+        )
         secrets_client.get_secret_value.assert_called_once_with(SecretId="secret-arn")
         psycopg.connect.assert_called_once_with(
             host="database.example.internal",
@@ -55,6 +68,7 @@ class DatabaseTests(unittest.TestCase):
             dbname="nrt",
             user="db-user",
             password="db-password",
+            connect_timeout=3,
         )
 
 

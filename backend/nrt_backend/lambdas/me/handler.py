@@ -30,10 +30,13 @@ def handler(event, context):
     connection = None
 
     try:
+        logger.warning("Starting database connectivity smoke test")
         connection = connect()
+        logger.warning("Database connection established; executing smoke query")
 
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1;")
+        logger.warning("Database connectivity smoke test succeeded")
     except Exception:
         logger.exception("Database connectivity smoke test failed")
 

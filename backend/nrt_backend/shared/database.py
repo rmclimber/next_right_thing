@@ -27,7 +27,15 @@ def _database_config():
 
 def _database_credentials(secret_arn):
     boto3 = import_module("boto3")
-    client = boto3.client("secretsmanager")
+    botocore_config = import_module("botocore.config")
+    client = boto3.client(
+        "secretsmanager",
+        config=botocore_config.Config(
+            connect_timeout=3,
+            read_timeout=3,
+            retries={"max_attempts": 2},
+        ),
+    )
     response = client.get_secret_value(SecretId=secret_arn)
     secret = json.loads(response["SecretString"])
 
@@ -48,4 +56,5 @@ def connect():
         dbname=config["dbname"],
         user=credentials["user"],
         password=credentials["password"],
+        connect_timeout=3,
     )
