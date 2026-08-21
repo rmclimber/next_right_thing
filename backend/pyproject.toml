@@ -3,7 +3,9 @@ name = "nrt-backend"
 version = "0.1.0"
 description = "Python backend package for Next Right Thing."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "psycopg[binary]>=3.2,<4",
+]
 
 [build-system]
 requires = ["setuptools>=69"]
