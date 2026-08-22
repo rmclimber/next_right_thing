@@ -55,6 +55,14 @@ Parameters:
     Type: String
     Description: S3 key for the MeFunction deployment package.
 
+  GoalsFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the GoalsFunction deployment package.
+
+  GoalsFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the GoalsFunction deployment package.
+
 Resources:
   MeFunctionRole:
     Type: AWS::IAM::Role
@@ -117,6 +125,67 @@ Resources:
         S3Bucket: !Ref MeFunctionCodeS3Bucket
         S3Key: !Ref MeFunctionCodeS3Key
 
+  GoalsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-api-goals-function-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: LambdaVpcNetworking
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+
+  GoalsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-api-goals"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.goals.handler.handler
+      Timeout: 45
+      Role: !GetAtt GoalsFunctionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_HOST: !Ref DatabaseEndpoint
+          DB_PORT: !Ref DatabasePort
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
+      Code:
+        S3Bucket: !Ref GoalsFunctionCodeS3Bucket
+        S3Key: !Ref GoalsFunctionCodeS3Key
+
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -128,6 +197,7 @@ Resources:
           - content-type
         AllowMethods:
           - GET
+          - POST
           - OPTIONS
         AllowOrigins:
           - !Ref CorsAllowedOrigin
@@ -166,6 +236,38 @@ Resources:
         - aws.cognito.signin.user.admin
       Target: !Sub "integrations/${MeIntegration}"
 
+  GoalsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations"
+        - FunctionArn: !GetAtt GoalsFunction.Arn
+      PayloadFormatVersion: '2.0'
+
+  CreateGoalRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /goals
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${GoalsIntegration}"
+
+  ListGoalsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /goals
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${GoalsIntegration}"
+
   DefaultStage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
@@ -181,6 +283,14 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/GET/me"
 
+  GoalsFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GoalsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/goals"
+
 Outputs:
   ApiEndpoint:
     Description: Base URL for the authenticated HTTP API.
@@ -189,3 +299,7 @@ Outputs:
   MeEndpoint:
     Description: Authenticated endpoint that returns selected JWT claims.
     Value: !Sub "${HttpApi.ApiEndpoint}/me"
+
+  GoalsEndpoint:
+    Description: Authenticated endpoint for Goal creation and listing.
+    Value: !Sub "${HttpApi.ApiEndpoint}/goals"
