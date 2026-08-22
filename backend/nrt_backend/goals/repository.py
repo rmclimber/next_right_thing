@@ -46,6 +46,15 @@ class NewGoal:
     target_date: date | None
 
 
+@dataclass(frozen=True)
+class GoalUpdate:
+    values: dict
+
+
+class GoalNotFoundError(Exception):
+    pass
+
+
 class GoalRepository:
     def create(self, user_id: str, new_goal: NewGoal):
         goal_id = uuid4()
@@ -85,6 +94,71 @@ class GoalRepository:
                 cursor.execute(LIST_GOALS_SQL, (user_id,))
                 rows = cursor.fetchall()
             return [_goal_from_row(row) for row in rows]
+        finally:
+            connection.close()
+
+    def update_for_user(self, goal_id: str, user_id: str, update: GoalUpdate):
+        now = datetime.now(timezone.utc)
+        assignments = []
+        params = []
+
+        for field in ("title", "description", "target_date"):
+            if field in update.values:
+                assignments.append(f"{field} = %s")
+                params.append(update.values[field])
+
+        new_status = update.values.get("status")
+        assignments.extend(
+            [
+                "status = COALESCE(%s, status)",
+                "updated_at = %s",
+                """completed_at = CASE
+                    WHEN %s = 'completed' AND status <> 'completed' THEN %s
+                    WHEN status = 'completed' AND (%s IS NULL OR %s = 'completed') THEN completed_at
+                    WHEN status = 'completed' AND %s <> 'completed' THEN NULL
+                    ELSE NULL
+                END""",
+            ]
+        )
+        params.extend(
+            [
+                new_status,
+                now,
+                new_status,
+                now,
+                new_status,
+                new_status,
+                new_status,
+                goal_id,
+                user_id,
+            ]
+        )
+
+        query = f"""
+UPDATE goals
+SET {", ".join(assignments)}
+WHERE id = %s
+AND user_id = %s
+RETURNING id, title, description, status, target_date, created_at, updated_at, completed_at;
+"""
+        connection = connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(query, tuple(params))
+                row = cursor.fetchone()
+
+            if row is None:
+                connection.rollback()
+                raise GoalNotFoundError()
+
+            connection.commit()
+            return _goal_from_row(row)
+        except GoalNotFoundError:
+            raise
+        except Exception:
+            connection.rollback()
+            raise
         finally:
             connection.close()
 

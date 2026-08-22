@@ -5,7 +5,7 @@ import json
 import logging
 import re
 
-from nrt_backend.goals.repository import GoalRepository, NewGoal
+from nrt_backend.goals.repository import GoalNotFoundError, GoalRepository, GoalUpdate, NewGoal
 
 
 logger = logging.getLogger(__name__)
@@ -18,6 +18,8 @@ DISALLOWED_CREATE_FIELDS = {
     "updated_at",
     "completed_at",
 }
+UPDATE_FIELDS = {"title", "description", "target_date", "status"}
+STATUS_VALUES = {"active", "paused", "completed", "archived"}
 ISO_DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -29,6 +31,9 @@ def handler(event, context):
 
     if method == "GET":
         return _list_goals(event)
+
+    if method == "PATCH":
+        return _update_goal(event)
 
     return _json_response(405, {"message": "Method not allowed"})
 
@@ -69,6 +74,34 @@ def _list_goals(event):
     return _json_response(200, {"goals": goals})
 
 
+def _update_goal(event):
+    user_id = _authenticated_sub(event)
+
+    if not user_id:
+        return _json_response(401, {"message": "Unauthorized"})
+
+    goal_id = _path_goal_id(event)
+
+    if not goal_id:
+        return _json_response(404, {"message": "Not found"})
+
+    try:
+        payload = _json_body(event)
+        goal_update = _validate_update_payload(payload)
+    except ValueError as error:
+        return _json_response(400, {"message": str(error)})
+
+    try:
+        goal = GoalRepository().update_for_user(goal_id, user_id, goal_update)
+    except GoalNotFoundError:
+        return _json_response(404, {"message": "Not found"})
+    except Exception:
+        logger.exception("Goal update failed")
+        return _json_response(500, {"message": "Internal server error"})
+
+    return _json_response(200, goal)
+
+
 def _http_method(event):
     return (
         event
@@ -87,6 +120,22 @@ def _authenticated_sub(event):
         .get("claims", {})
         .get("sub")
     )
+
+
+def _path_goal_id(event):
+    path_parameters = event.get("pathParameters") or {}
+    goal_id = path_parameters.get("id")
+
+    if goal_id:
+        return goal_id
+
+    raw_path = event.get("rawPath") or event.get("path") or ""
+    match = re.fullmatch(r"/goals/([^/]+)", raw_path)
+
+    if match:
+        return match.group(1)
+
+    return None
 
 
 def _json_body(event):
@@ -144,6 +193,63 @@ def _validate_create_payload(payload):
         description=description,
         target_date=target_date,
     )
+
+
+def _validate_update_payload(payload):
+    unsupported_fields = sorted(set(payload) - UPDATE_FIELDS)
+
+    if unsupported_fields:
+        raise ValueError("Request body contains fields that cannot be updated")
+
+    if not payload:
+        raise ValueError("Request body must contain at least one update field")
+
+    values = {}
+
+    if "title" in payload:
+        title = payload["title"]
+
+        if not isinstance(title, str) or not title.strip():
+            raise ValueError("title must be a non-empty string")
+
+        values["title"] = title.strip()
+
+    if "description" in payload:
+        description = payload["description"]
+
+        if description is not None and not isinstance(description, str):
+            raise ValueError("description must be a string or null")
+
+        values["description"] = description
+
+    if "target_date" in payload:
+        values["target_date"] = _validate_target_date(payload["target_date"])
+
+    if "status" in payload:
+        status = payload["status"]
+
+        if status not in STATUS_VALUES:
+            raise ValueError("status must be one of: active, archived, completed, paused")
+
+        values["status"] = status
+
+    if not values:
+        raise ValueError("Request body must contain at least one update field")
+
+    return GoalUpdate(values=values)
+
+
+def _validate_target_date(target_date):
+    if target_date is None:
+        return None
+
+    if not isinstance(target_date, str) or not ISO_DATE_PATTERN.match(target_date):
+        raise ValueError("target_date must be a valid ISO date")
+
+    try:
+        return date.fromisoformat(target_date)
+    except ValueError as error:
+        raise ValueError("target_date must be a valid ISO date") from error
 
 
 def _json_response(status_code, body):
