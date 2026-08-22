@@ -9,7 +9,7 @@ class MigrateHandlerTests(unittest.TestCase):
     def test_run_migrations_invokes_alembic_upgrade_to_head(self):
         config = Mock()
         script_directory = Mock()
-        script_directory.get_current_head.return_value = "20260821_0001"
+        script_directory.get_current_head.return_value = "20260822_0002"
 
         with (
             patch.object(migrate_handler, "alembic_config", return_value=config),
@@ -24,13 +24,13 @@ class MigrateHandlerTests(unittest.TestCase):
 
         upgrade.assert_called_once_with(config, "head")
         from_config.assert_called_once_with(config)
-        self.assertEqual(revision, "20260821_0001")
+        self.assertEqual(revision, "20260822_0002")
 
     def test_handler_returns_success_result_with_revision(self):
         with patch.object(
             migrate_handler,
             "run_migrations",
-            return_value="20260821_0001",
+            return_value="20260822_0002",
         ):
             response = migrate_handler.handler({}, None)
 
@@ -38,7 +38,7 @@ class MigrateHandlerTests(unittest.TestCase):
             response,
             {
                 "status": "ok",
-                "revision": "20260821_0001",
+                "revision": "20260822_0002",
             },
         )
 
