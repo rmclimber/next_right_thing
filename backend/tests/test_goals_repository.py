@@ -1,10 +1,10 @@
 import unittest
 from datetime import date, datetime, timezone
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from uuid import UUID
 
 from nrt_backend.goals import repository
-from nrt_backend.goals.repository import GoalRepository, NewGoal
+from nrt_backend.goals.repository import GoalNotFoundError, GoalRepository, GoalUpdate, NewGoal
 
 
 class FakeCursor:
@@ -112,6 +112,83 @@ class GoalRepositoryTests(unittest.TestCase):
         self.assertNotIn("cognito-user-sub", query)
         self.assertEqual(params, ("cognito-user-sub",))
         self.assertEqual(result, [])
+        self.assertTrue(connection.closed)
+
+    def test_update_query_scopes_by_goal_id_and_user_id(self):
+        updated_at = datetime(2026, 8, 22, 12, 30, tzinfo=timezone.utc)
+        cursor = FakeCursor(
+            fetchone_result=(
+                "goal-id",
+                "Learn Bayesian statistics",
+                None,
+                "paused",
+                None,
+                datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc),
+                updated_at,
+                None,
+            ),
+        )
+        connection = FakeConnection(cursor)
+
+        with patch.object(repository, "connect", return_value=connection):
+            result = GoalRepository().update_for_user(
+                "goal-id",
+                "cognito-user-sub",
+                GoalUpdate(values={"title": "Learn Bayesian statistics", "status": "paused"}),
+            )
+
+        query, params = cursor.executions[0]
+        self.assertIn("UPDATE goals", query)
+        self.assertIn("title = %s", query)
+        self.assertIn("status = COALESCE(%s, status)", query)
+        self.assertIn("updated_at = %s", query)
+        self.assertIn("completed_at = CASE", query)
+        self.assertIn("WHERE id = %s", query)
+        self.assertIn("AND user_id = %s", query)
+        self.assertIn("RETURNING id, title, description, status, target_date, created_at, updated_at, completed_at", query)
+        self.assertNotIn("cognito-user-sub", query)
+        self.assertEqual(params[0], "Learn Bayesian statistics")
+        self.assertEqual(params[1], "paused")
+        self.assertIsInstance(params[2], datetime)
+        self.assertEqual(params[2].tzinfo, timezone.utc)
+        self.assertEqual(params[-2:], ("goal-id", "cognito-user-sub"))
+        self.assertEqual(result["status"], "paused")
+        self.assertTrue(connection.committed)
+        self.assertTrue(connection.closed)
+
+    def test_update_returns_not_found_when_no_owned_goal_matches(self):
+        cursor = FakeCursor(fetchone_result=None)
+        connection = FakeConnection(cursor)
+
+        with patch.object(repository, "connect", return_value=connection):
+            with self.assertRaises(GoalNotFoundError):
+                GoalRepository().update_for_user(
+                    "goal-id",
+                    "cognito-user-sub",
+                    GoalUpdate(values={"title": "Learn Bayesian statistics"}),
+                )
+
+        query, params = cursor.executions[0]
+        self.assertIn("WHERE id = %s", query)
+        self.assertIn("AND user_id = %s", query)
+        self.assertEqual(params[-2:], ("goal-id", "cognito-user-sub"))
+        self.assertTrue(connection.rolled_back)
+        self.assertTrue(connection.closed)
+
+    def test_update_rolls_back_database_failures(self):
+        cursor = FakeCursor()
+        cursor.execute = Mock(side_effect=RuntimeError("database failed"))
+        connection = FakeConnection(cursor)
+
+        with patch.object(repository, "connect", return_value=connection):
+            with self.assertRaises(RuntimeError):
+                GoalRepository().update_for_user(
+                    "goal-id",
+                    "cognito-user-sub",
+                    GoalUpdate(values={"title": "Learn Bayesian statistics"}),
+                )
+
+        self.assertTrue(connection.rolled_back)
         self.assertTrue(connection.closed)
 
 

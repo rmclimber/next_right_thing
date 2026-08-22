@@ -197,6 +197,7 @@ Resources:
           - content-type
         AllowMethods:
           - GET
+          - PATCH
           - POST
           - OPTIONS
         AllowOrigins:
@@ -268,6 +269,17 @@ Resources:
         - aws.cognito.signin.user.admin
       Target: !Sub "integrations/${GoalsIntegration}"
 
+  UpdateGoalRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: PATCH /goals/{id}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${GoalsIntegration}"
+
   DefaultStage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
@@ -291,6 +303,14 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/goals"
 
+  GoalByIdFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref GoalsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/PATCH/goals/*"
+
 Outputs:
   ApiEndpoint:
     Description: Base URL for the authenticated HTTP API.
@@ -301,5 +321,5 @@ Outputs:
     Value: !Sub "${HttpApi.ApiEndpoint}/me"
 
   GoalsEndpoint:
-    Description: Authenticated endpoint for Goal creation and listing.
+    Description: Authenticated endpoint for Goal creation, listing, and updates.
     Value: !Sub "${HttpApi.ApiEndpoint}/goals"
