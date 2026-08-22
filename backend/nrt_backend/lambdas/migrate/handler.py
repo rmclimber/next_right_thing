@@ -18,10 +18,10 @@ def alembic_config():
 
 def run_migrations():
     config = alembic_config()
-    logger.warning("Starting database migrations")
+    logger.info("Starting database migrations")
     command.upgrade(config, "head")
     revision = ScriptDirectory.from_config(config).get_current_head()
-    logger.warning("Database migrations completed")
+    logger.info("Database migrations completed")
     return revision
 
 
