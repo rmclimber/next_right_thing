@@ -140,9 +140,10 @@ class GoalRepositoryTests(unittest.TestCase):
         query, params = cursor.executions[0]
         self.assertIn("UPDATE goals", query)
         self.assertIn("title = %s", query)
-        self.assertIn("status = COALESCE(%s, status)", query)
+        self.assertIn("status = COALESCE(%s::text, status)", query)
         self.assertIn("updated_at = %s", query)
         self.assertIn("completed_at = CASE", query)
+        self.assertIn("%s::text IS NULL", query)
         self.assertIn("WHERE id = %s", query)
         self.assertIn("AND user_id = %s", query)
         self.assertIn("RETURNING id, title, description, status, target_date, created_at, updated_at, completed_at", query)

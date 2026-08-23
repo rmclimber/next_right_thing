@@ -110,12 +110,12 @@ class GoalRepository:
         new_status = update.values.get("status")
         assignments.extend(
             [
-                "status = COALESCE(%s, status)",
+                "status = COALESCE(%s::text, status)",
                 "updated_at = %s",
                 """completed_at = CASE
-                    WHEN %s = 'completed' AND status <> 'completed' THEN %s
-                    WHEN status = 'completed' AND (%s IS NULL OR %s = 'completed') THEN completed_at
-                    WHEN status = 'completed' AND %s <> 'completed' THEN NULL
+                    WHEN %s::text = 'completed' AND status <> 'completed' THEN %s
+                    WHEN status = 'completed' AND (%s::text IS NULL OR %s::text = 'completed') THEN completed_at
+                    WHEN status = 'completed' AND %s::text <> 'completed' THEN NULL
                     ELSE NULL
                 END""",
             ]
