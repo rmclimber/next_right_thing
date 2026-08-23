@@ -1,7 +1,7 @@
 # NRT Web
 
-Minimal Next.js application for validating Cognito Hosted UI authentication and
-the authenticated `GET /me` API endpoint.
+Minimal Next.js application for Cognito Hosted UI authentication and the
+authenticated Goals experience.
 
 ## Configuration
 
@@ -28,4 +28,4 @@ pnpm dev
 ```
 
 Then open `http://localhost:3000`, sign in, and verify that the dashboard
-displays `email`, `sub`, and `email_verified`.
+loads the authenticated user's Goals.
