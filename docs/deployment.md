@@ -103,6 +103,7 @@ Each environment deploys:
 
 ```
 shared
+frontend
 auth
 database
 api
@@ -114,6 +115,7 @@ Development:
 
 ```
 shared-dev
+frontend-dev
 auth-dev
 database-dev
 api-dev
@@ -123,12 +125,28 @@ Production:
 
 ```
 shared-prod
+frontend-prod
 auth-prod
 database-prod
 api-prod
 ```
 
 Resource names are similarly parameterized using `StackSuffix`.
+
+The frontend stack provisions static hosting infrastructure only. It creates a
+private S3 bucket, a CloudFront distribution, and a CloudFront Origin Access
+Control (OAC) that allows CloudFront to read objects from the bucket. The bucket
+does not use S3 static website hosting and is not publicly readable.
+
+The frontend distribution currently uses the default CloudFront domain. The
+stack outputs `FrontendBucketName`, `CloudFrontDistributionId`,
+`CloudFrontDomainName`, and `FrontendUrl` for later deployment and configuration
+work.
+
+The frontend stack is deployed before the auth and API stacks so a later
+milestone can use `FrontendUrl` for Cognito callback/logout URLs and API CORS.
+Those settings remain controlled by the existing GitHub Environment variables
+until that rewiring is explicitly implemented.
 
 The API stack uses Lambda deployment packages uploaded to the artifact bucket
 created by the corresponding shared stack. The `/me` package key is derived
