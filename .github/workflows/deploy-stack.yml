@@ -75,6 +75,14 @@ jobs:
           echo "LAMBDA_SECURITY_GROUP_ID=${LAMBDA_SECURITY_GROUP_ID}" >> "$GITHUB_ENV"
           echo "ARTIFACT_BUCKET=${ARTIFACT_BUCKET}" >> "$GITHUB_ENV"
 
+      - name: Deploy Frontend Stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name frontend-${STACK_SUFFIX} \
+            --template-file infra/frontend/frontend.yaml \
+            --parameter-overrides \
+              StackSuffix="${STACK_SUFFIX}"
+
       - name: Build Migration Lambda Artifact
         run: |
           MIGRATION_ARTIFACT_KEY="lambda/migrate/${GITHUB_SHA}.zip"

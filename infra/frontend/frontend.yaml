@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Static frontend hosting for Next Right Thing.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: nrt
+    Description: Short project identifier.
+
+  StackSuffix:
+    Type: String
+    Description: Environment suffix used for resource names and tags.
+
+Resources:
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref StackSuffix
+        - Key: Name
+          Value: !Sub "${ProjectName}-${StackSuffix}-frontend"
+
+  FrontendOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${ProjectName}-${StackSuffix}-frontend-oac"
+        Description: !Sub "OAC for ${ProjectName}-${StackSuffix} frontend bucket"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  FrontendRouteRewriteFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${ProjectName}-${StackSuffix}-frontend-route-rewrite"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrites static Next.js export routes to generated HTML files.
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+
+          if (uri === "/") {
+            return request;
+          }
+
+          if (uri.charAt(uri.length - 1) === "/") {
+            request.uri = uri.slice(0, -1) + ".html";
+            return request;
+          }
+
+          var lastSegment = uri.substring(uri.lastIndexOf("/") + 1);
+          if (lastSegment.indexOf(".") === -1) {
+            request.uri = uri + ".html";
+          }
+
+          return request;
+        }
+
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub "${ProjectName}-${StackSuffix} static frontend"
+        DefaultRootObject: index.html
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - Id: FrontendBucketOrigin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt FrontendOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: FrontendBucketOrigin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt FrontendRouteRewriteFunction.FunctionMetadata.FunctionARN
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontServicePrincipalReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${FrontendDistribution}"
+
+Outputs:
+  FrontendBucketName:
+    Description: Private S3 bucket that stores the static frontend export.
+    Value: !Ref FrontendBucket
+
+  CloudFrontDistributionId:
+    Description: CloudFront distribution ID for the static frontend.
+    Value: !Ref FrontendDistribution
+
+  CloudFrontDomainName:
+    Description: Default CloudFront domain name for the static frontend.
+    Value: !GetAtt FrontendDistribution.DomainName
+
+  FrontendUrl:
+    Description: HTTPS URL for the static frontend using the default CloudFront domain.
+    Value: !Sub
+      - "https://${DomainName}"
+      - DomainName: !GetAtt FrontendDistribution.DomainName

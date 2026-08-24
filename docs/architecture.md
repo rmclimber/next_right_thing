@@ -34,6 +34,15 @@ Does not:
 - Contain business logic
 - Access databases directly
 
+Hosting:
+
+- The frontend is statically exported by Next.js.
+- CloudFront serves the exported files from a private S3 bucket.
+- CloudFront accesses S3 through Origin Access Control (OAC).
+- The S3 bucket is not configured for public access or S3 static website hosting.
+- Development and production use separate `frontend-dev` and `frontend-prod` stacks.
+- The application currently uses default CloudFront domains; no custom domain, Route 53 record, or ACM certificate is configured.
+
 ---
 
 ### API
