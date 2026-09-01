@@ -76,6 +76,7 @@ jobs:
           echo "ARTIFACT_BUCKET=${ARTIFACT_BUCKET}" >> "$GITHUB_ENV"
 
       - name: Deploy Frontend Stack
+        if: ${{ vars.ENABLE_FRONTEND_HOSTING == 'true' }}
         run: |
           aws cloudformation deploy \
             --stack-name frontend-${STACK_SUFFIX} \
