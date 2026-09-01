@@ -234,6 +234,25 @@ jobs:
         run: |
           aws s3 cp "${GOALS_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${GOALS_ARTIFACT_KEY}"
 
+      - name: Build Content Sources Lambda Artifact
+        run: |
+          CONTENT_SOURCES_ARTIFACT_KEY="lambda/content-sources/${GITHUB_SHA}.zip"
+          CONTENT_SOURCES_ARTIFACT_PATH="dist/lambda/content-sources.zip"
+
+          rm -rf dist/lambda/content-sources "${CONTENT_SOURCES_ARTIFACT_PATH}"
+          mkdir -p dist/lambda/content-sources
+          python -m pip install --upgrade pip
+          python -m pip install --target dist/lambda/content-sources ./backend
+
+          (cd dist/lambda/content-sources && zip -r ../content-sources.zip .)
+
+          echo "CONTENT_SOURCES_ARTIFACT_KEY=${CONTENT_SOURCES_ARTIFACT_KEY}" >> "$GITHUB_ENV"
+          echo "CONTENT_SOURCES_ARTIFACT_PATH=${CONTENT_SOURCES_ARTIFACT_PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload Content Sources Lambda Artifact
+        run: |
+          aws s3 cp "${CONTENT_SOURCES_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${CONTENT_SOURCES_ARTIFACT_KEY}"
+
       - name: Deploy API Stack
         run: |
           aws cloudformation deploy \
@@ -254,4 +273,6 @@ jobs:
               MeFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
               MeFunctionCodeS3Key="${ME_ARTIFACT_KEY}" \
               GoalsFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
-              GoalsFunctionCodeS3Key="${GOALS_ARTIFACT_KEY}"
+              GoalsFunctionCodeS3Key="${GOALS_ARTIFACT_KEY}" \
+              ContentSourcesFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              ContentSourcesFunctionCodeS3Key="${CONTENT_SOURCES_ARTIFACT_KEY}"

@@ -103,6 +103,146 @@ An authenticated user with no Goals receives:
 
 Internal failures return a generic `500 Internal Server Error` response.
 
+## POST /content-sources
+
+Requires a valid Cognito access token in the `Authorization: Bearer <token>` header.
+The token must include the `aws.cognito.signin.user.admin` scope.
+
+Creates a Content Source owned by the authenticated Cognito user. Ownership is
+derived from `requestContext.authorizer.jwt.claims.sub`; callers cannot provide
+or override `user_id`.
+
+Request:
+
+```json
+{
+  "name": "AWS Machine Learning Blog",
+  "url": "https://example.com/feed.xml"
+}
+```
+
+Required fields:
+
+- `name`: non-empty string after trimming
+- `url`: syntactically valid HTTP or HTTPS URL
+
+The request must be a valid JSON object. The following fields are rejected if
+supplied by the client: `id`, `user_id`, `source_type`, `status`, `created_at`,
+and `updated_at`.
+
+New Content Sources always begin with `source_type` set to `rss` and `status`
+set to `active`. The API does not fetch or validate live RSS feed contents.
+
+Success response: `201 Created`
+
+```json
+{
+  "id": "content-source-uuid",
+  "name": "AWS Machine Learning Blog",
+  "source_type": "rss",
+  "url": "https://example.com/feed.xml",
+  "status": "active",
+  "created_at": "2026-09-01T12:00:00+00:00",
+  "updated_at": "2026-09-01T12:00:00+00:00"
+}
+```
+
+Validation failures return `400 Bad Request` with a JSON `message`. If the
+authenticated user already has a Content Source with the same exact URL, the API
+returns `409 Conflict`. Internal failures return a generic
+`500 Internal Server Error` response.
+
+## GET /content-sources
+
+Requires a valid Cognito access token in the `Authorization: Bearer <token>` header.
+The token must include the `aws.cognito.signin.user.admin` scope.
+
+Returns Content Sources owned by the authenticated Cognito user. The response
+never includes Content Sources for another user. Results are ordered by newest
+creation time first.
+
+Success response: `200 OK`
+
+```json
+{
+  "content_sources": [
+    {
+      "id": "content-source-uuid",
+      "name": "AWS Machine Learning Blog",
+      "source_type": "rss",
+      "url": "https://example.com/feed.xml",
+      "status": "active",
+      "created_at": "2026-09-01T12:00:00+00:00",
+      "updated_at": "2026-09-01T12:00:00+00:00"
+    }
+  ]
+}
+```
+
+An authenticated user with no Content Sources receives:
+
+```json
+{
+  "content_sources": []
+}
+```
+
+Internal failures return a generic `500 Internal Server Error` response.
+
+## PATCH /content-sources/{id}
+
+Requires a valid Cognito access token in the `Authorization: Bearer <token>` header.
+The token must include the `aws.cognito.signin.user.admin` scope.
+
+Updates a Content Source owned by the authenticated Cognito user. Ownership is
+derived from `requestContext.authorizer.jwt.claims.sub`; callers cannot provide
+or override `user_id`. The update is scoped by both the requested Content Source
+`id` and the authenticated user, so nonexistent Content Sources and Content
+Sources owned by other users both return `404 Not Found`.
+
+Request:
+
+```json
+{
+  "name": "AWS Machine Learning Blog",
+  "url": "https://example.com/feed.xml",
+  "status": "paused"
+}
+```
+
+Supported fields:
+
+- `name`: non-empty string after trimming
+- `url`: syntactically valid HTTP or HTTPS URL
+- `status`: one of `active`, `paused`, or `archived`
+
+The request must be a valid JSON object with at least one supported update
+field. Unsupported fields are rejected, including the system-managed fields
+`id`, `user_id`, `source_type`, `created_at`, and `updated_at`.
+
+Successful updates always set `updated_at` to the current UTC timestamp. The API
+does not fetch or validate live RSS feed contents.
+
+Success response: `200 OK`
+
+```json
+{
+  "id": "content-source-uuid",
+  "name": "AWS Machine Learning Blog",
+  "source_type": "rss",
+  "url": "https://example.com/feed.xml",
+  "status": "paused",
+  "created_at": "2026-09-01T12:00:00+00:00",
+  "updated_at": "2026-09-01T12:30:00+00:00"
+}
+```
+
+Validation failures return `400 Bad Request` with a JSON `message`.
+Nonexistent or inaccessible Content Sources return `404 Not Found` with no
+distinction between the two cases. If a URL change conflicts with another
+Content Source owned by the same user, the API returns `409 Conflict`. Internal
+failures return a generic `500 Internal Server Error` response.
+
 ## PATCH /goals/{id}
 
 Requires a valid Cognito access token in the `Authorization: Bearer <token>` header.
