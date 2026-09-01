@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { getCurrentUser, signOut } from "aws-amplify/auth";
@@ -247,9 +248,14 @@ export default function Dashboard() {
             <p className="eyebrow">Next Right Thing</p>
             <h1>Goals</h1>
           </div>
-          <button className="button" type="button" onClick={handleSignOut}>
-            Sign Out
-          </button>
+          <div className="header-actions">
+            <Link className="button" href="/content-sources">
+              Content Sources
+            </Link>
+            <button className="button" type="button" onClick={handleSignOut}>
+              Sign Out
+            </button>
+          </div>
         </div>
 
         {state.status === "loading" ? <p>Loading Goals...</p> : null}

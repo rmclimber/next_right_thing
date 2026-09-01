@@ -117,6 +117,13 @@ textarea {
   gap: 24px;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .identity-list {
   display: grid;
   gap: 16px;
@@ -271,6 +278,10 @@ dd {
   overflow-wrap: anywhere;
 }
 
+.source-url {
+  word-break: break-word;
+}
+
 .goal-actions {
   justify-content: flex-end;
 }
@@ -328,6 +339,14 @@ dd {
   .header-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .header-actions {
+    justify-content: stretch;
+  }
+
+  .header-actions .button {
+    flex: 1 1 auto;
   }
 
   .goals-workspace,
