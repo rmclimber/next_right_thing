@@ -63,6 +63,14 @@ Parameters:
     Type: String
     Description: S3 key for the GoalsFunction deployment package.
 
+  ContentSourcesFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the ContentSourcesFunction deployment package.
+
+  ContentSourcesFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the ContentSourcesFunction deployment package.
+
 Resources:
   MeFunctionRole:
     Type: AWS::IAM::Role
@@ -186,6 +194,67 @@ Resources:
         S3Bucket: !Ref GoalsFunctionCodeS3Bucket
         S3Key: !Ref GoalsFunctionCodeS3Key
 
+  ContentSourcesFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-api-content-sources-function-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: LambdaVpcNetworking
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+
+  ContentSourcesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-api-content-sources"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.content_sources.handler.handler
+      Timeout: 45
+      Role: !GetAtt ContentSourcesFunctionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_HOST: !Ref DatabaseEndpoint
+          DB_PORT: !Ref DatabasePort
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
+      Code:
+        S3Bucket: !Ref ContentSourcesFunctionCodeS3Bucket
+        S3Key: !Ref ContentSourcesFunctionCodeS3Key
+
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -280,6 +349,49 @@ Resources:
         - aws.cognito.signin.user.admin
       Target: !Sub "integrations/${GoalsIntegration}"
 
+  ContentSourcesIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations"
+        - FunctionArn: !GetAtt ContentSourcesFunction.Arn
+      PayloadFormatVersion: '2.0'
+
+  CreateContentSourceRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /content-sources
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${ContentSourcesIntegration}"
+
+  ListContentSourcesRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /content-sources
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${ContentSourcesIntegration}"
+
+  UpdateContentSourceRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: PATCH /content-sources/{id}
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${ContentSourcesIntegration}"
+
   DefaultStage:
     Type: AWS::ApiGatewayV2::Stage
     Properties:
@@ -311,6 +423,22 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/PATCH/goals/*"
 
+  ContentSourcesFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ContentSourcesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*/content-sources"
+
+  ContentSourceByIdFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ContentSourcesFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/PATCH/content-sources/*"
+
 Outputs:
   ApiEndpoint:
     Description: Base URL for the authenticated HTTP API.
@@ -323,3 +451,7 @@ Outputs:
   GoalsEndpoint:
     Description: Authenticated endpoint for Goal creation, listing, and updates.
     Value: !Sub "${HttpApi.ApiEndpoint}/goals"
+
+  ContentSourcesEndpoint:
+    Description: Authenticated endpoint for Content Source creation, listing, and updates.
+    Value: !Sub "${HttpApi.ApiEndpoint}/content-sources"
