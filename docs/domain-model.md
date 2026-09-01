@@ -75,7 +75,8 @@ of the initial implementation.
 
 ### Content Source
 
-A Content Source is a provider of professional information.
+A Content Source represents a user-configured origin from which NRT may
+discover Content Items.
 
 Examples:
 
@@ -85,7 +86,7 @@ Examples:
 - Government website
 - Journal
 
-A Content Source periodically produces Content Items.
+For the initial implementation, RSS is the only supported source type.
 
 ### Content Item
 
