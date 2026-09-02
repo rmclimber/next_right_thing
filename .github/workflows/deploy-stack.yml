@@ -23,6 +23,7 @@ jobs:
         CORS_ALLOWED_ORIGIN: ${{ vars.CORS_ALLOWED_ORIGIN }}
         DATABASE_MIN_CAPACITY: ${{ vars.DATABASE_MIN_CAPACITY }}
         DATABASE_MAX_CAPACITY: ${{ vars.DATABASE_MAX_CAPACITY }}
+        ENABLE_DATABASE_BACKEND: ${{ vars.ENABLE_DATABASE_BACKEND }}
 
     steps:
       - name: Checkout
@@ -46,7 +47,9 @@ jobs:
         run: |
           aws cloudformation deploy \
             --stack-name shared-${STACK_SUFFIX} \
-            --template-file infra/shared/shared.yaml
+            --template-file infra/shared/shared.yaml \
+            --parameter-overrides \
+              DatabaseBackendEnabled="${ENABLE_DATABASE_BACKEND}"
 
       - name: Read Shared Stack Outputs
         run: |
@@ -85,6 +88,7 @@ jobs:
               StackSuffix="${STACK_SUFFIX}"
 
       - name: Build Migration Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           MIGRATION_ARTIFACT_KEY="lambda/migrate/${GITHUB_SHA}.zip"
           MIGRATION_ARTIFACT_PATH="dist/lambda/migrate.zip"
@@ -102,10 +106,12 @@ jobs:
           echo "MIGRATION_ARTIFACT_PATH=${MIGRATION_ARTIFACT_PATH}" >> "$GITHUB_ENV"
 
       - name: Upload Migration Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           aws s3 cp "${MIGRATION_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${MIGRATION_ARTIFACT_KEY}"
 
       - name: Deploy Database Stack
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           aws cloudformation deploy \
             --stack-name database-${STACK_SUFFIX} \
@@ -122,6 +128,7 @@ jobs:
               MigrationFunctionCodeS3Key="${MIGRATION_ARTIFACT_KEY}"
 
       - name: Read Database Stack Outputs
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           DATABASE_ENDPOINT=$(aws cloudformation describe-stacks \
             --stack-name database-${STACK_SUFFIX} \
@@ -155,6 +162,7 @@ jobs:
           echo "MIGRATION_FUNCTION_NAME=${MIGRATION_FUNCTION_NAME}" >> "$GITHUB_ENV"
 
       - name: Run Database Migrations
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           aws lambda invoke \
             --function-name "${MIGRATION_FUNCTION_NAME}" \
@@ -197,6 +205,7 @@ jobs:
           echo "USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}" >> "$GITHUB_ENV"
 
       - name: Build Me Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           ME_ARTIFACT_KEY="lambda/me/${GITHUB_SHA}.zip"
           ME_ARTIFACT_PATH="dist/lambda/me.zip"
@@ -212,10 +221,12 @@ jobs:
           echo "ME_ARTIFACT_PATH=${ME_ARTIFACT_PATH}" >> "$GITHUB_ENV"
 
       - name: Upload Me Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           aws s3 cp "${ME_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${ME_ARTIFACT_KEY}"
 
       - name: Build Goals Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           GOALS_ARTIFACT_KEY="lambda/goals/${GITHUB_SHA}.zip"
           GOALS_ARTIFACT_PATH="dist/lambda/goals.zip"
@@ -231,10 +242,12 @@ jobs:
           echo "GOALS_ARTIFACT_PATH=${GOALS_ARTIFACT_PATH}" >> "$GITHUB_ENV"
 
       - name: Upload Goals Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           aws s3 cp "${GOALS_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${GOALS_ARTIFACT_KEY}"
 
       - name: Build Content Sources Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           CONTENT_SOURCES_ARTIFACT_KEY="lambda/content-sources/${GITHUB_SHA}.zip"
           CONTENT_SOURCES_ARTIFACT_PATH="dist/lambda/content-sources.zip"
@@ -250,10 +263,12 @@ jobs:
           echo "CONTENT_SOURCES_ARTIFACT_PATH=${CONTENT_SOURCES_ARTIFACT_PATH}" >> "$GITHUB_ENV"
 
       - name: Upload Content Sources Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           aws s3 cp "${CONTENT_SOURCES_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${CONTENT_SOURCES_ARTIFACT_KEY}"
 
       - name: Deploy API Stack
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
           aws cloudformation deploy \
             --stack-name api-${STACK_SUFFIX} \

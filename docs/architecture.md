@@ -100,6 +100,14 @@ CloudFormation manages the Aurora PostgreSQL infrastructure. PostgreSQL
 application schema changes are managed separately by versioned Alembic
 migrations in the backend project.
 
+Database-backed application infrastructure can be disabled per deployment
+environment through the externally configured GitHub Environment variable
+`ENABLE_DATABASE_BACKEND`. Development currently enables the database backend so
+the complete application path is deployed. Production may keep only the
+shared/auth/frontend foundation before production readiness; disabling the gate
+skips the database, migrations, and database-backed API deployment without
+destroying an existing database stack.
+
 ### Database Migrations
 
 Responsibilities:
