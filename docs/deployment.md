@@ -84,6 +84,7 @@ Environment variables include:
 - CALLBACK_URL
 - LOGOUT_URL
 - CORS_ALLOWED_ORIGIN
+- ENABLE_DATABASE_BACKEND
 
 ---
 
@@ -94,6 +95,19 @@ Production deployments are initiated using `workflow_dispatch`.
 Deployment requires manual approval through GitHub Environments.
 
 Production has its own independent configuration values.
+
+`ENABLE_DATABASE_BACKEND` is configured outside the repository as a GitHub
+Environment variable. Development currently sets it to `true`, which deploys
+the complete shared, auth, database, migration, API, and optionally frontend
+path. Production may set it to `false` before production readiness, which keeps
+shared infrastructure, auth, and the existing frontend-hosting gate active while
+skipping database, migration, and database-backed API deployment.
+
+Disabling `ENABLE_DATABASE_BACKEND` does not delete an existing database stack
+or change Aurora scaling settings. Database destruction remains an explicit
+operator action outside the normal deployment workflow. The database template
+keeps deletion protection enabled by default and exposes a parameter for
+intentional operator-driven changes.
 
 ---
 
@@ -130,6 +144,11 @@ auth-prod
 database-prod
 api-prod
 ```
+
+When `ENABLE_DATABASE_BACKEND` is not `true`, the `database-*` and `api-*`
+stacks are not deployed by the workflow. The `shared-*` stack still deploys, but
+omits only the Secrets Manager interface VPC endpoint and its dedicated endpoint
+security group.
 
 Resource names are similarly parameterized using `StackSuffix`.
 

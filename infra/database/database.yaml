@@ -26,6 +26,14 @@ Parameters:
     Default: 1
     Description: Maximum Aurora Serverless v2 capacity units.
 
+  DatabaseDeletionProtection:
+    Type: String
+    Default: 'true'
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Whether deletion protection is enabled on the Aurora PostgreSQL cluster.
+
   PrivateSubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
     Description: Private subnet IDs from the shared stack.
@@ -45,6 +53,11 @@ Parameters:
   MigrationFunctionCodeS3Key:
     Type: String
     Description: S3 key for the migration Lambda deployment package.
+
+Conditions:
+  DatabaseDeletionProtectionEnabled: !Equals
+    - !Ref DatabaseDeletionProtection
+    - 'true'
 
 Resources:
   DatabaseSubnetGroup:
@@ -75,7 +88,10 @@ Resources:
       StorageEncrypted: true
       BackupRetentionPeriod: 7
       CopyTagsToSnapshot: true
-      DeletionProtection: true
+      DeletionProtection: !If
+        - DatabaseDeletionProtectionEnabled
+        - true
+        - false
       Tags:
         - Key: Name
           Value: !Sub "${ProjectName}-${StackSuffix}-database"
