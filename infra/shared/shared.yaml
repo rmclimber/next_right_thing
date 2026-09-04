@@ -3,6 +3,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Shared infrastructure
 
 Parameters:
+
   DatabaseBackendEnabled:
     Type: String
     AllowedValues:
@@ -10,9 +11,23 @@ Parameters:
       - 'false'
     Description: Whether database-backed application infrastructure is enabled for this environment.
 
+  SecretsManagerEndpointMultiAz:
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'true'
+    Description: Whether the Secrets Manager interface endpoint should span both private subnets.
+
+
 Conditions:
+
   DatabaseBackendEnabledCondition: !Equals
     - !Ref DatabaseBackendEnabled
+    - 'true'
+
+  SecretsManagerEndpointMultiAzCondition: !Equals
+    - !Ref SecretsManagerEndpointMultiAz
     - 'true'
 
 Resources:
@@ -127,9 +142,11 @@ Resources:
       VpcId: !Ref Vpc
       VpcEndpointType: Interface
       ServiceName: !Sub "com.amazonaws.${AWS::Region}.secretsmanager"
-      SubnetIds:
-        - !Ref PrivateSubnetOne
-        - !Ref PrivateSubnetTwo
+      SubnetIds: !If
+        - SecretsManagerEndpointMultiAzCondition
+        - - !Ref PrivateSubnetOne
+          - !Ref PrivateSubnetTwo
+        - - !Ref PrivateSubnetOne
       SecurityGroupIds:
         - !Ref SecretsManagerEndpointSecurityGroup
       PrivateDnsEnabled: true

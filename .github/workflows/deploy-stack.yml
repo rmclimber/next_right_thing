@@ -24,6 +24,7 @@ jobs:
         DATABASE_MIN_CAPACITY: ${{ vars.DATABASE_MIN_CAPACITY }}
         DATABASE_MAX_CAPACITY: ${{ vars.DATABASE_MAX_CAPACITY }}
         ENABLE_DATABASE_BACKEND: ${{ vars.ENABLE_DATABASE_BACKEND }}
+        SECRETS_MANAGER_ENDPOINT_MULTI_AZ: ${{ vars.SECRETS_MANAGER_ENDPOINT_MULTI_AZ }}
 
     steps:
       - name: Checkout
@@ -49,7 +50,8 @@ jobs:
             --stack-name shared-${STACK_SUFFIX} \
             --template-file infra/shared/shared.yaml \
             --parameter-overrides \
-              DatabaseBackendEnabled="${ENABLE_DATABASE_BACKEND}"
+              DatabaseBackendEnabled="${ENABLE_DATABASE_BACKEND}" \
+              SecretsManagerEndpointMultiAz="${SECRETS_MANAGER_ENDPOINT_MULTI_AZ}"
 
       - name: Read Shared Stack Outputs
         run: |
