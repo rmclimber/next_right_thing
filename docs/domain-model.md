@@ -90,7 +90,9 @@ For the initial implementation, RSS is the only supported source type.
 
 ### Content Item
 
-A Content Item is a single piece of professional information.
+A Content Item is a piece of content discovered from a Content Source and
+potentially eligible to produce a candidate Action. It belongs to the User who
+owns that Content Source.
 
 Examples:
 
@@ -100,11 +102,16 @@ Examples:
 - Regulation summary
 - GitHub release
 
-Every Content Item originates from exactly one Content Source.
+Every Content Item originates from exactly one Content Source. Its source-specific
+external identity prevents duplicate discovery from that source; the same URL may
+be discovered from different Content Sources. A missing item from a later feed
+poll does not delete the previously discovered Content Item.
 
-A Content Item may relate to one or more Topics.
+A Content Item always records when NRT discovered it. Its publication time may be
+absent when the source does not provide a reliable value.
 
-A Content Item may be relevant to one or more Goals.
+Topic and Goal relationships are future concepts and are not part of the initial
+persisted Content Item model.
 
 ### Recommendation
 
