@@ -121,9 +121,34 @@ jobs:
             exit 1
           fi
 
-          echo "CALLBACK_URL=${FRONTEND_URL}/dashboard" >> "$GITHUB_ENV"
-          echo "LOGOUT_URL=${FRONTEND_URL}" >> "$GITHUB_ENV"
-          echo "CORS_ALLOWED_ORIGIN=${FRONTEND_URL}" >> "$GITHUB_ENV"
+          if [ "${{ inputs.environment }}" = "development" ]; then
+            CALLBACK_URLS="http://localhost:3000/dashboard,${FRONTEND_URL}/dashboard"
+            LOGOUT_URLS="http://localhost:3000,${FRONTEND_URL}"
+            CORS_ALLOWED_ORIGINS="http://localhost:3000,${FRONTEND_URL}"
+          else
+            CALLBACK_URLS="${FRONTEND_URL}/dashboard"
+            LOGOUT_URLS="${FRONTEND_URL}"
+            CORS_ALLOWED_ORIGINS="${FRONTEND_URL}"
+          fi
+
+          echo "CALLBACK_URLS=${CALLBACK_URLS}" >> "$GITHUB_ENV"
+          echo "LOGOUT_URLS=${LOGOUT_URLS}" >> "$GITHUB_ENV"
+          echo "CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}" >> "$GITHUB_ENV"
+
+      - name: Configure Backend Origins Without Frontend Hosting
+        if: ${{ env.ENABLE_FRONTEND_HOSTING != 'true' }}
+        run: |
+          echo "CALLBACK_URLS=${CALLBACK_URL}" >> "$GITHUB_ENV"
+          echo "LOGOUT_URLS=${LOGOUT_URL}" >> "$GITHUB_ENV"
+          echo "CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGIN}" >> "$GITHUB_ENV"
+
+      - name: Verify Production Excludes Localhost
+        if: ${{ inputs.environment == 'production' }}
+        run: |
+          if [[ "${CALLBACK_URLS},${LOGOUT_URLS},${CORS_ALLOWED_ORIGINS}" == *"http://localhost:3000"* ]]; then
+            echo "Production callback, logout, and CORS configuration must exclude localhost."
+            exit 1
+          fi
 
       - name: Validate Hosted Frontend Dependencies
         if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
@@ -232,8 +257,8 @@ jobs:
             --template-file infra/auth/auth.yaml \
             --parameter-overrides \
                 StackSuffix="${STACK_SUFFIX}" \
-                CallbackUrl="${CALLBACK_URL}" \
-                LogoutUrl="${LOGOUT_URL}"
+                CallbackUrls="${CALLBACK_URLS}" \
+                LogoutUrls="${LOGOUT_URLS}"
 
       - name: Read Auth Stack Outputs
         run: |
@@ -369,7 +394,7 @@ jobs:
               StackSuffix="${STACK_SUFFIX}" \
               UserPoolId="${USER_POOL_ID}" \
               UserPoolClientId="${USER_POOL_CLIENT_ID}" \
-              CorsAllowedOrigin="${CORS_ALLOWED_ORIGIN}" \
+              CorsAllowedOrigins="${CORS_ALLOWED_ORIGINS}" \
               PrivateSubnetIds="${PRIVATE_SUBNET_IDS}" \
               LambdaSecurityGroupId="${LAMBDA_SECURITY_GROUP_ID}" \
               DatabaseEndpoint="${DATABASE_ENDPOINT}" \

@@ -15,10 +15,10 @@ Parameters:
     Type: String
     Description: Cognito User Pool app client ID used as the JWT audience.
 
-  CorsAllowedOrigin:
-    Type: String
+  CorsAllowedOrigins:
+    Type: CommaDelimitedList
     Default: http://localhost:3000
-    Description: Origin allowed to call the API from a browser.
+    Description: Origins allowed to call the API from a browser.
 
   DatabaseEndpoint:
     Type: String
@@ -270,7 +270,7 @@ Resources:
           - POST
           - OPTIONS
         AllowOrigins:
-          - !Ref CorsAllowedOrigin
+          !Ref CorsAllowedOrigins
 
   JwtAuthorizer:
     Type: AWS::ApiGatewayV2::Authorizer
