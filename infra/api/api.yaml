@@ -71,6 +71,14 @@ Parameters:
     Type: String
     Description: S3 key for the ContentSourcesFunction deployment package.
 
+  ContentItemsFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the ContentItemsFunction deployment package.
+
+  ContentItemsFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the ContentItemsFunction deployment package.
+
 Resources:
   MeFunctionRole:
     Type: AWS::IAM::Role
@@ -255,6 +263,67 @@ Resources:
         S3Bucket: !Ref ContentSourcesFunctionCodeS3Bucket
         S3Key: !Ref ContentSourcesFunctionCodeS3Key
 
+  ContentItemsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-api-content-items-function-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: LambdaVpcNetworking
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+
+  ContentItemsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-api-content-items"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.content_items.handler.handler
+      Timeout: 45
+      Role: !GetAtt ContentItemsFunctionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_HOST: !Ref DatabaseEndpoint
+          DB_PORT: !Ref DatabasePort
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
+      Code:
+        S3Bucket: !Ref ContentItemsFunctionCodeS3Bucket
+        S3Key: !Ref ContentItemsFunctionCodeS3Key
+
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -359,6 +428,16 @@ Resources:
         - FunctionArn: !GetAtt ContentSourcesFunction.Arn
       PayloadFormatVersion: '2.0'
 
+  ContentItemsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations"
+        - FunctionArn: !GetAtt ContentItemsFunction.Arn
+      PayloadFormatVersion: '2.0'
+
   CreateContentSourceRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -391,6 +470,17 @@ Resources:
       AuthorizationScopes:
         - aws.cognito.signin.user.admin
       Target: !Sub "integrations/${ContentSourcesIntegration}"
+
+  ListContentItemsRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /content-items
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${ContentItemsIntegration}"
 
   DefaultStage:
     Type: AWS::ApiGatewayV2::Stage
@@ -439,6 +529,14 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/PATCH/content-sources/*"
 
+  ContentItemsFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ContentItemsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/GET/content-items"
+
 Outputs:
   ApiEndpoint:
     Description: Base URL for the authenticated HTTP API.
@@ -455,3 +553,7 @@ Outputs:
   ContentSourcesEndpoint:
     Description: Authenticated endpoint for Content Source creation, listing, and updates.
     Value: !Sub "${HttpApi.ApiEndpoint}/content-sources"
+
+  ContentItemsEndpoint:
+    Description: Authenticated endpoint for Content Item listing.
+    Value: !Sub "${HttpApi.ApiEndpoint}/content-items"

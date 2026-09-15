@@ -1,5 +1,40 @@
 # API
 
+## GET /content-items
+
+Requires a valid Cognito access token in the `Authorization: Bearer <token>` header.
+The token must include the `aws.cognito.signin.user.admin` scope.
+
+Returns Content Items owned by the authenticated Cognito user. Ownership is
+derived exclusively from `requestContext.authorizer.jwt.claims.sub`; the
+response never exposes `user_id`. Results are ordered newest-first by
+`discovered_at`, then `created_at`, then `id` for deterministic ordering.
+
+Success response: `200 OK`
+
+```json
+{
+  "content_items": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "content_source_id": "550e8400-e29b-41d4-a716-446655440001",
+      "external_id": "feed-guid-or-atom-id",
+      "title": "Example title",
+      "url": "https://example.com/post",
+      "summary": "Optional summary",
+      "published_at": "2026-09-15T12:00:00+00:00",
+      "discovered_at": "2026-09-15T13:00:00+00:00",
+      "created_at": "2026-09-15T13:00:01+00:00",
+      "updated_at": "2026-09-15T13:00:01+00:00"
+    }
+  ]
+}
+```
+
+`summary` and `published_at` may be `null`. An authenticated user with no
+Content Items receives `{ "content_items": [] }` with `200 OK`. Internal
+failures return a generic `500 Internal Server Error` response.
+
 ## GET /me
 
 Requires a valid Cognito access token in the `Authorization: Bearer <token>` header.
