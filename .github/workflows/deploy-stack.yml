@@ -23,6 +23,7 @@ jobs:
         CORS_ALLOWED_ORIGIN: ${{ vars.CORS_ALLOWED_ORIGIN }}
         DATABASE_MIN_CAPACITY: ${{ vars.DATABASE_MIN_CAPACITY }}
         DATABASE_MAX_CAPACITY: ${{ vars.DATABASE_MAX_CAPACITY }}
+        ENABLE_FRONTEND_HOSTING: ${{ vars.ENABLE_FRONTEND_HOSTING }}
         ENABLE_DATABASE_BACKEND: ${{ vars.ENABLE_DATABASE_BACKEND }}
         SECRETS_MANAGER_ENDPOINT_MULTI_AZ: ${{ vars.SECRETS_MANAGER_ENDPOINT_MULTI_AZ }}
 
@@ -81,13 +82,70 @@ jobs:
           echo "ARTIFACT_BUCKET=${ARTIFACT_BUCKET}" >> "$GITHUB_ENV"
 
       - name: Deploy Frontend Stack
-        if: ${{ vars.ENABLE_FRONTEND_HOSTING == 'true' }}
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
         run: |
           aws cloudformation deploy \
             --stack-name frontend-${STACK_SUFFIX} \
             --template-file infra/frontend/frontend.yaml \
             --parameter-overrides \
               StackSuffix="${STACK_SUFFIX}"
+
+      - name: Read Frontend Stack Outputs
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          FRONTEND_BUCKET_NAME=$(aws cloudformation describe-stacks \
+            --stack-name frontend-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" \
+            --output text)
+
+          CLOUDFRONT_DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+            --stack-name frontend-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue" \
+            --output text)
+
+          FRONTEND_URL=$(aws cloudformation describe-stacks \
+            --stack-name frontend-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendUrl'].OutputValue" \
+            --output text)
+
+          echo "FRONTEND_BUCKET_NAME=${FRONTEND_BUCKET_NAME}" >> "$GITHUB_ENV"
+          echo "CLOUDFRONT_DISTRIBUTION_ID=${CLOUDFRONT_DISTRIBUTION_ID}" >> "$GITHUB_ENV"
+          echo "FRONTEND_URL=${FRONTEND_URL}" >> "$GITHUB_ENV"
+
+      - name: Set Up Node
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Frontend Dependencies
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Build Frontend Static Export
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          pnpm build
+
+          if [ ! -d apps/web/out ]; then
+            echo "Expected Next.js static export directory apps/web/out was not created."
+            exit 1
+          fi
+
+      - name: Upload Frontend Static Export
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          aws s3 sync apps/web/out/ "s3://${FRONTEND_BUCKET_NAME}/" --delete
+
+      - name: Invalidate Frontend CloudFront Distribution
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths '/*'
+          echo "Frontend deployed: ${FRONTEND_URL}"
 
       - name: Build Migration Lambda Artifact
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}

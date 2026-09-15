@@ -84,6 +84,7 @@ Environment variables include:
 - CALLBACK_URL
 - LOGOUT_URL
 - CORS_ALLOWED_ORIGIN
+- ENABLE_FRONTEND_HOSTING
 - ENABLE_DATABASE_BACKEND
 
 ---
@@ -161,6 +162,21 @@ The frontend distribution currently uses the default CloudFront domain. The
 stack outputs `FrontendBucketName`, `CloudFrontDistributionId`,
 `CloudFrontDomainName`, and `FrontendUrl` for later deployment and configuration
 work.
+
+When `ENABLE_FRONTEND_HOSTING` is `true`, the deployment workflow reads
+`FrontendBucketName`, `CloudFrontDistributionId`, and `FrontendUrl` from the
+environment's `frontend-*` CloudFormation stack rather than storing those
+identifiers in GitHub Environment variables. It installs the workspace's pnpm
+dependencies, runs `pnpm build` to create the Next.js static export in
+`apps/web/out`, synchronizes the *contents* of that directory to the root of
+the private frontend bucket with `aws s3 sync --delete`, then invalidates `/*`
+on the discovered CloudFront distribution. The workflow reports the discovered
+`FrontendUrl` after a successful upload and invalidation.
+
+When `ENABLE_FRONTEND_HOSTING` is not `true`, the frontend stack deployment,
+frontend build, upload, and CloudFront invalidation steps are skipped. This
+allows production frontend hosting to remain disabled independently of the
+backend deployment gate.
 
 The frontend stack is deployed before the auth and API stacks so a later
 milestone can use `FrontendUrl` for Cognito callback/logout URLs and API CORS.
