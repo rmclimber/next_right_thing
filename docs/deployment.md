@@ -121,6 +121,7 @@ shared
 frontend
 auth
 database
+ingestion
 api
 ```
 
@@ -133,6 +134,7 @@ shared-dev
 frontend-dev
 auth-dev
 database-dev
+ingestion-dev
 api-dev
 ```
 
@@ -143,13 +145,14 @@ shared-prod
 frontend-prod
 auth-prod
 database-prod
+ingestion-prod
 api-prod
 ```
 
-When `ENABLE_DATABASE_BACKEND` is not `true`, the `database-*` and `api-*`
-stacks are not deployed by the workflow. The `shared-*` stack still deploys, but
-omits only the Secrets Manager interface VPC endpoint and its dedicated endpoint
-security group.
+When `ENABLE_DATABASE_BACKEND` is not `true`, the `database-*`, `ingestion-*`,
+and `api-*` stacks are not deployed by the workflow. The `shared-*` stack still
+deploys, but omits only the Secrets Manager interface VPC endpoint and its
+dedicated endpoint security group.
 
 Resource names are similarly parameterized using `StackSuffix`.
 
@@ -199,6 +202,14 @@ The database stack also deploys a dedicated migration Lambda. Its deployment
 package includes `nrt_backend`, Alembic configuration, migration revisions, and
 PostgreSQL runtime dependencies. The package key is derived from the Git commit
 SHA.
+
+The ingestion stack deploys the standard `nrt-<environment>-normalized-content-items`
+SQS queue and a VPC-attached Content Item Writer Lambda. Its artifact uses the
+same backend packaging pattern and is also keyed by Git commit SHA. The Writer
+uses partial batch failures for transient database failures. Malformed messages
+and messages whose Content Source is not owned by the supplied user are logged
+without their payloads and acknowledged; this initial milestone has no DLQ.
+The normalized message contract is documented in `docs/content-item-ingestion.md`.
 
 After the database stack deploys, `deploy-stack.yml` invokes the migration
 Lambda synchronously for the current `STACK_SUFFIX`. If Alembic fails, the
