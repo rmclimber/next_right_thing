@@ -81,9 +81,9 @@ Environment variables include:
 - AWS_ROLE_ARN
 - AWS_REGION
 - STACK_SUFFIX
-- CALLBACK_URL
-- LOGOUT_URL
-- CORS_ALLOWED_ORIGIN
+- CALLBACK_URL (used when frontend hosting is disabled)
+- LOGOUT_URL (used when frontend hosting is disabled)
+- CORS_ALLOWED_ORIGIN (used when frontend hosting is disabled)
 - ENABLE_FRONTEND_HOSTING
 - ENABLE_DATABASE_BACKEND
 
@@ -166,22 +166,29 @@ work.
 When `ENABLE_FRONTEND_HOSTING` is `true`, the deployment workflow reads
 `FrontendBucketName`, `CloudFrontDistributionId`, and `FrontendUrl` from the
 environment's `frontend-*` CloudFormation stack rather than storing those
-identifiers in GitHub Environment variables. It installs the workspace's pnpm
-dependencies, runs `pnpm build` to create the Next.js static export in
-`apps/web/out`, synchronizes the *contents* of that directory to the root of
-the private frontend bucket with `aws s3 sync --delete`, then invalidates `/*`
-on the discovered CloudFront distribution. The workflow reports the discovered
-`FrontendUrl` after a successful upload and invalidation.
+identifiers in GitHub Environment variables. It uses `FrontendUrl` as the
+Cognito callback/logout and API CORS origin, then reads the auth and API stack
+outputs needed for the static Next.js build. The workflow derives the public
+build configuration from `AWS_REGION`, auth outputs, `ApiEndpoint`, and
+`FrontendUrl`; it does not rely on CloudFront or S3 to inject configuration at
+runtime. It installs the workspace's pnpm dependencies, runs `pnpm build` to
+create the Next.js static export in `apps/web/out`, synchronizes the *contents*
+of that directory to the root of the private frontend bucket with `aws s3 sync
+--delete`, then invalidates `/*` on the discovered CloudFront distribution. The
+workflow reports the discovered `FrontendUrl` after a successful upload and
+invalidation.
 
 When `ENABLE_FRONTEND_HOSTING` is not `true`, the frontend stack deployment,
 frontend build, upload, and CloudFront invalidation steps are skipped. This
 allows production frontend hosting to remain disabled independently of the
 backend deployment gate.
 
-The frontend stack is deployed before the auth and API stacks so a later
-milestone can use `FrontendUrl` for Cognito callback/logout URLs and API CORS.
-Those settings remain controlled by the existing GitHub Environment variables
-until that rewiring is explicitly implemented.
+The frontend stack is deployed before the auth and API stacks. For hosted
+deployments, its `FrontendUrl` is used consistently as the API CORS origin, as
+the Cognito logout URL, and with `/dashboard` appended as the Cognito callback
+URL. When frontend hosting is disabled, the existing GitHub Environment
+`CALLBACK_URL`, `LOGOUT_URL`, and `CORS_ALLOWED_ORIGIN` values continue to be
+used for backend/auth deployment.
 
 The API stack uses Lambda deployment packages uploaded to the artifact bucket
 created by the corresponding shared stack. The `/me` package key is derived

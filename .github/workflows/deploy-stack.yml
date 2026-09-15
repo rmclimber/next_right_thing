@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+        AWS_REGION: ${{ vars.AWS_REGION }}
         STACK_SUFFIX: ${{ vars.STACK_SUFFIX }}
         CALLBACK_URL: ${{ vars.CALLBACK_URL }}
         LOGOUT_URL: ${{ vars.LOGOUT_URL }}
@@ -112,40 +113,25 @@ jobs:
           echo "CLOUDFRONT_DISTRIBUTION_ID=${CLOUDFRONT_DISTRIBUTION_ID}" >> "$GITHUB_ENV"
           echo "FRONTEND_URL=${FRONTEND_URL}" >> "$GITHUB_ENV"
 
-      - name: Set Up Node
-        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install Frontend Dependencies
+      - name: Configure Hosted Frontend Origins
         if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
         run: |
-          corepack enable
-          pnpm install --frozen-lockfile
-
-      - name: Build Frontend Static Export
-        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
-        run: |
-          pnpm build
-
-          if [ ! -d apps/web/out ]; then
-            echo "Expected Next.js static export directory apps/web/out was not created."
+          if [ -z "${FRONTEND_URL}" ]; then
+            echo "FrontendUrl output is required when frontend hosting is enabled."
             exit 1
           fi
 
-      - name: Upload Frontend Static Export
-        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
-        run: |
-          aws s3 sync apps/web/out/ "s3://${FRONTEND_BUCKET_NAME}/" --delete
+          echo "CALLBACK_URL=${FRONTEND_URL}/dashboard" >> "$GITHUB_ENV"
+          echo "LOGOUT_URL=${FRONTEND_URL}" >> "$GITHUB_ENV"
+          echo "CORS_ALLOWED_ORIGIN=${FRONTEND_URL}" >> "$GITHUB_ENV"
 
-      - name: Invalidate Frontend CloudFront Distribution
+      - name: Validate Hosted Frontend Dependencies
         if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
         run: |
-          aws cloudfront create-invalidation \
-            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
-            --paths '/*'
-          echo "Frontend deployed: ${FRONTEND_URL}"
+          if [ "${ENABLE_DATABASE_BACKEND}" != "true" ]; then
+            echo "Frontend hosting requires ENABLE_DATABASE_BACKEND=true so the API base URL can be supplied at build time."
+            exit 1
+          fi
 
       - name: Build Migration Lambda Artifact
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
@@ -261,8 +247,14 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" \
             --output text)
 
+          COGNITO_DOMAIN=$(aws cloudformation describe-stacks \
+            --stack-name auth-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='UserPoolDomain'].OutputValue" \
+            --output text)
+
           echo "USER_POOL_ID=${USER_POOL_ID}" >> "$GITHUB_ENV"
           echo "USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}" >> "$GITHUB_ENV"
+          echo "COGNITO_DOMAIN=${COGNITO_DOMAIN}" >> "$GITHUB_ENV"
 
       - name: Build Me Lambda Artifact
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
@@ -351,3 +343,75 @@ jobs:
               GoalsFunctionCodeS3Key="${GOALS_ARTIFACT_KEY}" \
               ContentSourcesFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
               ContentSourcesFunctionCodeS3Key="${CONTENT_SOURCES_ARTIFACT_KEY}"
+
+      - name: Read API Stack Outputs
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          API_BASE_URL=$(aws cloudformation describe-stacks \
+            --stack-name api-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" \
+            --output text)
+
+          echo "API_BASE_URL=${API_BASE_URL}" >> "$GITHUB_ENV"
+
+      - name: Configure Frontend Build Environment
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          required_values=(
+            AWS_REGION
+            USER_POOL_ID
+            USER_POOL_CLIENT_ID
+            COGNITO_DOMAIN
+            FRONTEND_URL
+            API_BASE_URL
+          )
+
+          for name in "${required_values[@]}"; do
+            if [ -z "${!name}" ] || [ "${!name}" = "None" ]; then
+              echo "Required deployment value ${name} could not be resolved for the frontend build."
+              exit 1
+            fi
+          done
+
+          echo "NEXT_PUBLIC_AWS_REGION=${AWS_REGION}" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_COGNITO_USER_POOL_ID=${USER_POOL_ID}" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_COGNITO_USER_POOL_CLIENT_ID=${USER_POOL_CLIENT_ID}" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_COGNITO_DOMAIN=${COGNITO_DOMAIN}" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_AUTH_REDIRECT_SIGN_IN=${FRONTEND_URL}/dashboard" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_AUTH_REDIRECT_SIGN_OUT=${FRONTEND_URL}" >> "$GITHUB_ENV"
+          echo "NEXT_PUBLIC_API_BASE_URL=${API_BASE_URL}" >> "$GITHUB_ENV"
+
+      - name: Set Up Node
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Frontend Dependencies
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Build Frontend Static Export
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          pnpm build
+
+          if [ ! -d apps/web/out ]; then
+            echo "Expected Next.js static export directory apps/web/out was not created."
+            exit 1
+          fi
+
+      - name: Upload Frontend Static Export
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          aws s3 sync apps/web/out/ "s3://${FRONTEND_BUCKET_NAME}/" --delete
+
+      - name: Invalidate Frontend CloudFront Distribution
+        if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths '/*'
+          echo "Frontend deployed: ${FRONTEND_URL}"

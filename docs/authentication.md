@@ -110,15 +110,13 @@ High-level flow:
 
 ## Callback URL
 
-The OAuth callback URL is:
-
-```
-http://localhost:3000/dashboard
-```
-
-This callback must exactly match the Callback URL configured on the Cognito App Client.
-
-This is distinct from the logout URL.
+For local development, the OAuth callback URL is
+`http://localhost:3000/dashboard` and the logout URL is
+`http://localhost:3000`. For hosted deployments, the deployment workflow uses
+the frontend stack `FrontendUrl`, setting the callback URL to
+`${FrontendUrl}/dashboard` and the logout URL to `${FrontendUrl}`. These values
+must exactly match the Callback and Logout URLs configured on the Cognito App
+Client.
 
 ---
 
@@ -136,7 +134,10 @@ NEXT_PUBLIC_AUTH_REDIRECT_SIGN_OUT
 NEXT_PUBLIC_API_BASE_URL
 ```
 
-Values are obtained from CloudFormation stack outputs.
+For local development, values are copied into `.env.local` from CloudFormation
+stack outputs. For hosted static builds, the deployment workflow supplies them
+at build time from the GitHub Environment `AWS_REGION`, auth stack outputs, API
+stack `ApiEndpoint`, and frontend stack `FrontendUrl`.
 
 ---
 
