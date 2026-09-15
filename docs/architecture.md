@@ -87,6 +87,12 @@ Responsibilities:
 - Update search indexes
 - Generate embeddings (future)
 
+The first durable ingestion boundary is a VPC-attached Content Item Writer
+Lambda. It consumes normalized Content Item messages from SQS and persists them
+to Aurora PostgreSQL. RSS fetching and source dispatch are intentionally not
+implemented yet. The normalized message contract is documented in
+`docs/content-item-ingestion.md`.
+
 ---
 
 ### Database
@@ -137,15 +143,13 @@ Recommendation
 Browser
 
 ### Example 2:
-Scheduled poll
+Content Item persistence
 
-EventBridge
+Normalized Content Item message
     ↓
-Worker
+SQS
     ↓
-RSS Feed
-    ↓
-Parser
+Content Item Writer Lambda
     ↓
 PostgreSQL
 

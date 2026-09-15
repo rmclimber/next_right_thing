@@ -1,0 +1,154 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Durable Content Item ingestion resources for Next Right Thing.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: nrt
+    Description: Short project identifier.
+
+  StackSuffix:
+    Type: String
+
+  DatabaseEndpoint:
+    Type: String
+    Description: Aurora PostgreSQL writer endpoint.
+
+  DatabasePort:
+    Type: Number
+    Description: Aurora PostgreSQL port.
+
+  DatabaseName:
+    Type: String
+    Description: Aurora PostgreSQL database name.
+
+  DatabaseSecretArn:
+    Type: String
+    Description: Secrets Manager ARN containing database credentials.
+
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnet IDs for VPC-attached Lambda functions.
+
+  LambdaSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group ID for VPC-attached Lambda functions.
+
+  ContentItemWriterFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the Content Item Writer deployment package.
+
+  ContentItemWriterFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the Content Item Writer deployment package.
+
+Resources:
+  NormalizedContentItemsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-${StackSuffix}-normalized-content-items"
+      VisibilityTimeout: 180
+
+  ContentItemWriterFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-content-item-writer-function-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: LambdaVpcNetworking
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+        - PolicyName: DatabaseSecretRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+        - PolicyName: NormalizedContentItemsConsume
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt NormalizedContentItemsQueue.Arn
+
+  ContentItemWriterFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-content-item-writer"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.content_item_writer.handler.handler
+      Timeout: 60
+      Role: !GetAtt ContentItemWriterFunctionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_HOST: !Ref DatabaseEndpoint
+          DB_PORT: !Ref DatabasePort
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
+      Code:
+        S3Bucket: !Ref ContentItemWriterFunctionCodeS3Bucket
+        S3Key: !Ref ContentItemWriterFunctionCodeS3Key
+
+  ContentItemWriterEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt NormalizedContentItemsQueue.Arn
+      FunctionName: !Ref ContentItemWriterFunction
+      BatchSize: 5
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
+      ScalingConfig:
+        MaximumConcurrency: 2
+
+Outputs:
+  NormalizedContentItemsQueueUrl:
+    Description: URL for normalized Content Item messages.
+    Value: !Ref NormalizedContentItemsQueue
+    Export:
+      Name: !Sub "${AWS::StackName}-NormalizedContentItemsQueueUrl"
+
+  NormalizedContentItemsQueueArn:
+    Description: ARN for normalized Content Item messages.
+    Value: !GetAtt NormalizedContentItemsQueue.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-NormalizedContentItemsQueueArn"
+
+  ContentItemWriterFunctionName:
+    Description: Content Item Writer Lambda function name.
+    Value: !Ref ContentItemWriterFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-ContentItemWriterFunctionName"

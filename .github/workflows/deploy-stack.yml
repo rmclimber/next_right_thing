@@ -319,6 +319,45 @@ jobs:
         run: |
           aws s3 cp "${CONTENT_SOURCES_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${CONTENT_SOURCES_ARTIFACT_KEY}"
 
+      - name: Build Content Item Writer Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          CONTENT_ITEM_WRITER_ARTIFACT_KEY="lambda/content-item-writer/${GITHUB_SHA}.zip"
+          CONTENT_ITEM_WRITER_ARTIFACT_PATH="dist/lambda/content-item-writer.zip"
+
+          rm -rf dist/lambda/content-item-writer "${CONTENT_ITEM_WRITER_ARTIFACT_PATH}"
+          mkdir -p dist/lambda/content-item-writer
+          python -m pip install --upgrade pip
+          python -m pip install --target dist/lambda/content-item-writer ./backend
+
+          (cd dist/lambda/content-item-writer && zip -r ../content-item-writer.zip .)
+
+          echo "CONTENT_ITEM_WRITER_ARTIFACT_KEY=${CONTENT_ITEM_WRITER_ARTIFACT_KEY}" >> "$GITHUB_ENV"
+          echo "CONTENT_ITEM_WRITER_ARTIFACT_PATH=${CONTENT_ITEM_WRITER_ARTIFACT_PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload Content Item Writer Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          aws s3 cp "${CONTENT_ITEM_WRITER_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${CONTENT_ITEM_WRITER_ARTIFACT_KEY}"
+
+      - name: Deploy Ingestion Stack
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          aws cloudformation deploy \
+            --stack-name ingestion-${STACK_SUFFIX} \
+            --template-file infra/ingestion/ingestion.yaml \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --parameter-overrides \
+              StackSuffix="${STACK_SUFFIX}" \
+              PrivateSubnetIds="${PRIVATE_SUBNET_IDS}" \
+              LambdaSecurityGroupId="${LAMBDA_SECURITY_GROUP_ID}" \
+              DatabaseEndpoint="${DATABASE_ENDPOINT}" \
+              DatabasePort="${DATABASE_PORT}" \
+              DatabaseName="${DATABASE_NAME}" \
+              DatabaseSecretArn="${DATABASE_SECRET_ARN}" \
+              ContentItemWriterFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              ContentItemWriterFunctionCodeS3Key="${CONTENT_ITEM_WRITER_ARTIFACT_KEY}"
+
       - name: Deploy API Stack
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
