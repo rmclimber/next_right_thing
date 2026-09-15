@@ -110,11 +110,12 @@ High-level flow:
 
 ## Callback URL
 
-For local development, the OAuth callback URL is
-`http://localhost:3000/dashboard` and the logout URL is
-`http://localhost:3000`. For hosted deployments, the deployment workflow uses
-the frontend stack `FrontendUrl`, setting the callback URL to
-`${FrontendUrl}/dashboard` and the logout URL to `${FrontendUrl}`. These values
+Local development uses `http://localhost:3000/dashboard` as its callback URL
+and `http://localhost:3000` as its logout URL. When development frontend
+hosting is enabled, the Cognito app client also allows the same paths derived
+from the `frontend-dev` stack `FrontendUrl`, so local and CloudFront-hosted
+development work simultaneously. Hosted production uses only the URLs derived
+from `frontend-prod` `FrontendUrl`; it never allows localhost. These values
 must exactly match the Callback and Logout URLs configured on the Cognito App
 Client.
 

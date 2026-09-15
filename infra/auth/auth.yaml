@@ -7,13 +7,15 @@ Parameters:
     Default: nrt
     Description: Short project identifier.
 
-  CallbackUrl:
-    Type: String
+  CallbackUrls:
+    Type: CommaDelimitedList
     Default: http://localhost:3000/dashboard
+    Description: OAuth callback URLs allowed for the app client.
 
-  LogoutUrl:
-    Type: String
+  LogoutUrls:
+    Type: CommaDelimitedList
     Default: http://localhost:3000
+    Description: Logout URLs allowed for the app client.
 
   StackSuffix:
     Type: String
@@ -79,10 +81,10 @@ Resources:
         - COGNITO
 
       CallbackURLs:
-        - !Ref CallbackUrl
+        !Ref CallbackUrls
 
       LogoutURLs:
-        - !Ref LogoutUrl
+        !Ref LogoutUrls
 
       PreventUserExistenceErrors: ENABLED
 

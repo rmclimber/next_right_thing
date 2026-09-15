@@ -187,11 +187,13 @@ allows production frontend hosting to remain disabled independently of the
 backend deployment gate.
 
 The frontend stack is deployed before the auth and API stacks. For hosted
-deployments, its `FrontendUrl` is used consistently as the API CORS origin, as
-the Cognito logout URL, and with `/dashboard` appended as the Cognito callback
-URL. When frontend hosting is disabled, the existing GitHub Environment
-`CALLBACK_URL`, `LOGOUT_URL`, and `CORS_ALLOWED_ORIGIN` values continue to be
-used for backend/auth deployment.
+development, its `FrontendUrl` is used as a second API CORS origin and a second
+Cognito logout/callback URL alongside the explicit localhost development URLs.
+Hosted production uses only its `FrontendUrl` for CORS and Cognito, with
+`/dashboard` appended for the callback URL; it excludes localhost. When
+frontend hosting is disabled, the existing GitHub Environment `CALLBACK_URL`,
+`LOGOUT_URL`, and `CORS_ALLOWED_ORIGIN` values continue to be used for
+backend/auth deployment, and the production workflow rejects localhost values.
 
 The API stack uses Lambda deployment packages uploaded to the artifact bucket
 created by the corresponding shared stack. The `/me` package key is derived
