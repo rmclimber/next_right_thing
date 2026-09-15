@@ -47,6 +47,24 @@ SELECT
 """
 
 
+LIST_CONTENT_ITEMS_SQL = """
+SELECT
+    id,
+    content_source_id,
+    external_id,
+    title,
+    url,
+    summary,
+    published_at,
+    discovered_at,
+    created_at,
+    updated_at
+FROM content_items
+WHERE user_id = %s
+ORDER BY discovered_at DESC, created_at DESC, id DESC;
+"""
+
+
 class ContentSourceOwnershipError(ValueError):
     """Raised when a Content Source is not owned by the message user."""
 
@@ -104,3 +122,50 @@ class ContentItemRepository:
             raise
         finally:
             connection.close()
+
+    def list_for_user(self, user_id: str):
+        connection = connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(LIST_CONTENT_ITEMS_SQL, (user_id,))
+                rows = cursor.fetchall()
+            return [_content_item_from_row(row) for row in rows]
+        finally:
+            connection.close()
+
+
+def _content_item_from_row(row):
+    (
+        item_id,
+        content_source_id,
+        external_id,
+        title,
+        url,
+        summary,
+        published_at,
+        discovered_at,
+        created_at,
+        updated_at,
+    ) = row
+
+    return {
+        "id": _uuid_value(item_id),
+        "content_source_id": _uuid_value(content_source_id),
+        "external_id": external_id,
+        "title": title,
+        "url": url,
+        "summary": summary,
+        "published_at": _datetime_value(published_at),
+        "discovered_at": _datetime_value(discovered_at),
+        "created_at": _datetime_value(created_at),
+        "updated_at": _datetime_value(updated_at),
+    }
+
+
+def _uuid_value(value):
+    return str(value) if isinstance(value, UUID) else value
+
+
+def _datetime_value(value):
+    return value.isoformat() if isinstance(value, datetime) else value

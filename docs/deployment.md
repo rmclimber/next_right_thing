@@ -195,10 +195,11 @@ frontend hosting is disabled, the existing GitHub Environment `CALLBACK_URL`,
 `LOGOUT_URL`, and `CORS_ALLOWED_ORIGIN` values continue to be used for
 backend/auth deployment, and the production workflow rejects localhost values.
 
-The API stack uses Lambda deployment packages uploaded to the artifact bucket
-created by the corresponding shared stack. The `/me` package key is derived
-from the Git commit SHA so repeated deployments do not accidentally reuse stale
-Lambda code.
+The API stack uses one Lambda deployment package per API Lambda, uploaded to
+the artifact bucket created by the corresponding shared stack. Package keys,
+including the `/me`, Goals, Content Sources, and Content Items API packages,
+are derived from the Git commit SHA so repeated deployments do not accidentally
+reuse stale Lambda code.
 
 The database stack also deploys a dedicated migration Lambda. Its deployment
 package includes `nrt_backend`, Alembic configuration, migration revisions, and

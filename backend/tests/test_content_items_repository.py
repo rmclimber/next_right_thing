@@ -12,8 +12,9 @@ from nrt_backend.content_items.repository import (
 
 
 class FakeCursor:
-    def __init__(self, fetchone_result=None):
+    def __init__(self, fetchone_result=None, fetchall_result=None):
         self.fetchone_result = fetchone_result
+        self.fetchall_result = fetchall_result or []
         self.executions = []
 
     def __enter__(self):
@@ -27,6 +28,9 @@ class FakeCursor:
 
     def fetchone(self):
         return self.fetchone_result
+
+    def fetchall(self):
+        return self.fetchall_result
 
 
 class FakeConnection:
@@ -107,6 +111,35 @@ class ContentItemRepositoryTests(unittest.TestCase):
 
         self.assertTrue(connection.committed)
         self.assertFalse(connection.rolled_back)
+        self.assertTrue(connection.closed)
+
+    def test_list_scopes_by_user_and_serializes_nullable_fields(self):
+        item_id = UUID("11111111-1111-1111-1111-111111111111")
+        source_id = UUID("22222222-2222-2222-2222-222222222222")
+        discovered_at = datetime(2026, 9, 15, 13, 0, tzinfo=timezone.utc)
+        cursor = FakeCursor(
+            fetchall_result=[
+                (
+                    item_id, source_id, "feed-guid", "Example title", "https://example.com/post",
+                    None, None, discovered_at, discovered_at, discovered_at,
+                )
+            ]
+        )
+        connection = FakeConnection(cursor)
+
+        with patch.object(repository, "connect", return_value=connection):
+            result = ContentItemRepository().list_for_user("cognito-user-sub")
+
+        query, params = cursor.executions[0]
+        self.assertIn("WHERE user_id = %s", query)
+        self.assertIn("ORDER BY discovered_at DESC, created_at DESC, id DESC", query)
+        self.assertNotIn("cognito-user-sub", query)
+        self.assertEqual(params, ("cognito-user-sub",))
+        self.assertEqual(result[0]["id"], str(item_id))
+        self.assertEqual(result[0]["content_source_id"], str(source_id))
+        self.assertIsNone(result[0]["summary"])
+        self.assertIsNone(result[0]["published_at"])
+        self.assertEqual(result[0]["discovered_at"], "2026-09-15T13:00:00+00:00")
         self.assertTrue(connection.closed)
 
 

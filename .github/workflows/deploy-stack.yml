@@ -344,6 +344,27 @@ jobs:
         run: |
           aws s3 cp "${CONTENT_SOURCES_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${CONTENT_SOURCES_ARTIFACT_KEY}"
 
+      - name: Build Content Items Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          CONTENT_ITEMS_ARTIFACT_KEY="lambda/content-items/${GITHUB_SHA}.zip"
+          CONTENT_ITEMS_ARTIFACT_PATH="dist/lambda/content-items.zip"
+
+          rm -rf dist/lambda/content-items "${CONTENT_ITEMS_ARTIFACT_PATH}"
+          mkdir -p dist/lambda/content-items
+          python -m pip install --upgrade pip
+          python -m pip install --target dist/lambda/content-items ./backend
+
+          (cd dist/lambda/content-items && zip -r ../content-items.zip .)
+
+          echo "CONTENT_ITEMS_ARTIFACT_KEY=${CONTENT_ITEMS_ARTIFACT_KEY}" >> "$GITHUB_ENV"
+          echo "CONTENT_ITEMS_ARTIFACT_PATH=${CONTENT_ITEMS_ARTIFACT_PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload Content Items Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          aws s3 cp "${CONTENT_ITEMS_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${CONTENT_ITEMS_ARTIFACT_KEY}"
+
       - name: Build Content Item Writer Lambda Artifact
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
@@ -406,7 +427,9 @@ jobs:
               GoalsFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
               GoalsFunctionCodeS3Key="${GOALS_ARTIFACT_KEY}" \
               ContentSourcesFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
-              ContentSourcesFunctionCodeS3Key="${CONTENT_SOURCES_ARTIFACT_KEY}"
+              ContentSourcesFunctionCodeS3Key="${CONTENT_SOURCES_ARTIFACT_KEY}" \
+              ContentItemsFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              ContentItemsFunctionCodeS3Key="${CONTENT_ITEMS_ARTIFACT_KEY}"
 
       - name: Read API Stack Outputs
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
