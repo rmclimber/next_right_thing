@@ -30,8 +30,13 @@ batch failures for SQS retry. Permanently malformed and ownership-invalid
 messages are safely logged and acknowledged. There is deliberately no DLQ in
 this initial milestone.
 
-RSS fetching, source dispatch, EventBridge scheduling, and content APIs remain
-future work.
+An EventBridge rule invokes a VPC-attached Source Dispatch Lambda every 15
+minutes. It selects active RSS Content Sources and publishes a minimal fetch job
+to a second standard SQS queue. A non-VPC RSS Fetch Lambda consumes that queue,
+retrieves public RSS/Atom feeds, and publishes normalized Content Item messages
+to the existing queue. Keeping the fetcher outside the VPC provides public
+internet access without adding a NAT Gateway; it receives no database or
+Secrets Manager permissions.
 
 ## Consequences
 
@@ -42,3 +47,5 @@ future work.
 - Permanent-message investigation initially relies on CloudWatch logs because
   no DLQ is provisioned.
 - The ingestion stack is deployed only when `ENABLE_DATABASE_BACKEND=true`.
+- Polling deliberately emits repeat feed entries; Writer uniqueness remains the
+  idempotency boundary until feed-state optimization is justified.

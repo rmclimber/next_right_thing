@@ -207,12 +207,14 @@ PostgreSQL runtime dependencies. The package key is derived from the Git commit
 SHA.
 
 The ingestion stack deploys the standard `nrt-<environment>-normalized-content-items`
-SQS queue and a VPC-attached Content Item Writer Lambda. Its artifact uses the
-same backend packaging pattern and is also keyed by Git commit SHA. The Writer
-uses partial batch failures for transient database failures. Malformed messages
-and messages whose Content Source is not owned by the supplied user are logged
-without their payloads and acknowledged; this initial milestone has no DLQ.
-The normalized message contract is documented in `docs/content-item-ingestion.md`.
+and `nrt-<environment>-rss-fetch-jobs` queues, a VPC-attached Source Dispatch
+Lambda and Content Item Writer Lambda, and a non-VPC RSS Fetch Lambda. All three
+artifacts use the backend packaging pattern and are keyed by Git commit SHA.
+EventBridge invokes the dispatcher every 15 minutes. The public fetcher remains
+outside the VPC so public RSS access does not require a NAT Gateway; it has only
+permission to send normalized items. Both queues deliberately have no DLQ in
+this milestone. The normalized message contract is documented in
+`docs/content-item-ingestion.md`.
 
 After the database stack deploys, `deploy-stack.yml` invokes the migration
 Lambda synchronously for the current `STACK_SUFFIX`. If Alembic fails, the

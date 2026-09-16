@@ -386,6 +386,46 @@ jobs:
         run: |
           aws s3 cp "${CONTENT_ITEM_WRITER_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${CONTENT_ITEM_WRITER_ARTIFACT_KEY}"
 
+      - name: Build Source Dispatch Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          SOURCE_DISPATCH_ARTIFACT_KEY="lambda/source-dispatch/${GITHUB_SHA}.zip"
+          SOURCE_DISPATCH_ARTIFACT_PATH="dist/lambda/source-dispatch.zip"
+
+          rm -rf dist/lambda/source-dispatch "${SOURCE_DISPATCH_ARTIFACT_PATH}"
+          mkdir -p dist/lambda/source-dispatch
+          python -m pip install --target dist/lambda/source-dispatch ./backend
+
+          (cd dist/lambda/source-dispatch && zip -r ../source-dispatch.zip .)
+
+          echo "SOURCE_DISPATCH_ARTIFACT_KEY=${SOURCE_DISPATCH_ARTIFACT_KEY}" >> "$GITHUB_ENV"
+          echo "SOURCE_DISPATCH_ARTIFACT_PATH=${SOURCE_DISPATCH_ARTIFACT_PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload Source Dispatch Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          aws s3 cp "${SOURCE_DISPATCH_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${SOURCE_DISPATCH_ARTIFACT_KEY}"
+
+      - name: Build RSS Fetch Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          RSS_FETCH_ARTIFACT_KEY="lambda/rss-fetch/${GITHUB_SHA}.zip"
+          RSS_FETCH_ARTIFACT_PATH="dist/lambda/rss-fetch.zip"
+
+          rm -rf dist/lambda/rss-fetch "${RSS_FETCH_ARTIFACT_PATH}"
+          mkdir -p dist/lambda/rss-fetch
+          python -m pip install --target dist/lambda/rss-fetch ./backend
+
+          (cd dist/lambda/rss-fetch && zip -r ../rss-fetch.zip .)
+
+          echo "RSS_FETCH_ARTIFACT_KEY=${RSS_FETCH_ARTIFACT_KEY}" >> "$GITHUB_ENV"
+          echo "RSS_FETCH_ARTIFACT_PATH=${RSS_FETCH_ARTIFACT_PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload RSS Fetch Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          aws s3 cp "${RSS_FETCH_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${RSS_FETCH_ARTIFACT_KEY}"
+
       - name: Deploy Ingestion Stack
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
@@ -402,7 +442,11 @@ jobs:
               DatabaseName="${DATABASE_NAME}" \
               DatabaseSecretArn="${DATABASE_SECRET_ARN}" \
               ContentItemWriterFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
-              ContentItemWriterFunctionCodeS3Key="${CONTENT_ITEM_WRITER_ARTIFACT_KEY}"
+              ContentItemWriterFunctionCodeS3Key="${CONTENT_ITEM_WRITER_ARTIFACT_KEY}" \
+              SourceDispatchFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              SourceDispatchFunctionCodeS3Key="${SOURCE_DISPATCH_ARTIFACT_KEY}" \
+              RssFetchFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              RssFetchFunctionCodeS3Key="${RSS_FETCH_ARTIFACT_KEY}"
 
       - name: Deploy API Stack
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
