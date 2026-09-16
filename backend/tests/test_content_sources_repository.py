@@ -138,6 +138,25 @@ class ContentSourceRepositoryTests(unittest.TestCase):
         self.assertEqual(result, [])
         self.assertTrue(connection.closed)
 
+    def test_list_active_rss_sources_excludes_paused_archived_and_unsupported_sources(self):
+        source_id = UUID("11111111-1111-1111-1111-111111111111")
+        cursor = FakeCursor(fetchall_result=[(source_id, "cognito-user-sub", "https://example.com/feed.xml")])
+        connection = FakeConnection(cursor)
+
+        with patch.object(repository, "connect", return_value=connection):
+            result = ContentSourceRepository().list_active_rss_sources()
+
+        query, params = cursor.executions[0]
+        self.assertIn("SELECT id, user_id, url", query)
+        self.assertIn("WHERE status = 'active'", query)
+        self.assertIn("AND source_type = 'rss'", query)
+        self.assertEqual(params, ())
+        self.assertEqual(
+            result,
+            [{"id": str(source_id), "user_id": "cognito-user-sub", "url": "https://example.com/feed.xml"}],
+        )
+        self.assertTrue(connection.closed)
+
     def test_update_query_scopes_by_source_id_and_user_id(self):
         updated_at = datetime(2026, 9, 1, 12, 30, tzinfo=timezone.utc)
         cursor = FakeCursor(

@@ -1,8 +1,11 @@
 # Content Item Ingestion Contract
 
 The `nrt-<environment>-normalized-content-items` SQS queue accepts one JSON
-object per message. Future RSS/Atom fetching and source-dispatch components are
-the producers; they are not part of the current implementation.
+object per message. The RSS Fetch Lambda is its current producer. Every 15
+minutes, EventBridge invokes the VPC-attached Source Dispatch Lambda, which
+queries active RSS Content Sources and sends one job per source to
+`nrt-<environment>-rss-fetch-jobs`. The non-VPC RSS Fetch Lambda retrieves and
+normalizes RSS/Atom entries, then sends them to this queue.
 
 ```json
 {
@@ -31,3 +34,11 @@ Malformed messages and ownership-invalid messages are logged safely and
 acknowledged. They do not currently have a dead-letter queue. Transient database
 or secret-retrieval failures are reported as partial batch failures and retried
 by SQS/Lambda.
+
+The fetch-jobs queue and normalized queue intentionally have no DLQ in this
+milestone. Permanent malformed jobs and non-429 HTTP 4xx feed responses are
+logged and acknowledged. Network failures, HTTP 429/5xx responses, and failures
+to publish normalized items are retried per SQS record. Repeated feed entries
+are expected on every poll: Writer uniqueness on `(content_source_id,
+external_id)` is the idempotency boundary. No feed-state, ETag, or conditional
+fetch optimization exists yet.

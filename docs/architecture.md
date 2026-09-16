@@ -87,11 +87,28 @@ Responsibilities:
 - Update search indexes
 - Generate embeddings (future)
 
-The first durable ingestion boundary is a VPC-attached Content Item Writer
-Lambda. It consumes normalized Content Item messages from SQS and persists them
-to Aurora PostgreSQL. RSS fetching and source dispatch are intentionally not
-implemented yet. The normalized message contract is documented in
-`docs/content-item-ingestion.md`.
+RSS ingestion uses a private-source/public-fetch/private-write pipeline:
+
+```
+Aurora Content Sources
+    ↓
+Source Dispatch Lambda (VPC-attached)
+    ↓
+rss-fetch-jobs SQS
+    ↓
+RSS Fetch Lambda (outside the VPC)
+    ↓
+normalized-content-items SQS
+    ↓
+Content Item Writer Lambda (VPC-attached)
+    ↓
+Aurora Content Items
+```
+
+The dispatcher and writer use private subnets because they access Aurora and
+Secrets Manager. The RSS Fetch Lambda has no VPC configuration or database
+access, so it can reach public feeds without a NAT Gateway. The normalized
+message contract is documented in `docs/content-item-ingestion.md`.
 
 ---
 

@@ -37,6 +37,14 @@ ORDER BY created_at DESC, id DESC;
 """
 
 
+LIST_ACTIVE_RSS_SOURCES_SQL = """
+SELECT id, user_id, url
+FROM content_sources
+WHERE status = 'active'
+  AND source_type = 'rss';
+"""
+
+
 @dataclass(frozen=True)
 class NewContentSource:
     name: str
@@ -96,6 +104,24 @@ class ContentSourceRepository:
                 cursor.execute(LIST_CONTENT_SOURCES_SQL, (user_id,))
                 rows = cursor.fetchall()
             return [_content_source_from_row(row) for row in rows]
+        finally:
+            connection.close()
+
+    def list_active_rss_sources(self):
+        connection = connect()
+
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute(LIST_ACTIVE_RSS_SOURCES_SQL, ())
+                rows = cursor.fetchall()
+            return [
+                {
+                    "id": str(source_id) if isinstance(source_id, UUID) else source_id,
+                    "user_id": user_id,
+                    "url": url,
+                }
+                for source_id, user_id, url in rows
+            ]
         finally:
             connection.close()
 

@@ -42,12 +42,189 @@ Parameters:
     Type: String
     Description: S3 key for the Content Item Writer deployment package.
 
+  SourceDispatchFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the Source Dispatch deployment package.
+
+  SourceDispatchFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the Source Dispatch deployment package.
+
+  RssFetchFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the RSS Fetch deployment package.
+
+  RssFetchFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the RSS Fetch deployment package.
+
 Resources:
   NormalizedContentItemsQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: !Sub "${ProjectName}-${StackSuffix}-normalized-content-items"
       VisibilityTimeout: 180
+
+  RssFetchJobsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${ProjectName}-${StackSuffix}-rss-fetch-jobs"
+      VisibilityTimeout: 180
+
+  SourceDispatchFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-source-dispatch-function-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: LambdaVpcNetworking
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+        - PolicyName: DatabaseSecretRead
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+        - PolicyName: FetchJobsSend
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt RssFetchJobsQueue.Arn
+
+  SourceDispatchFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-source-dispatch"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.source_dispatch.handler.handler
+      Timeout: 60
+      Role: !GetAtt SourceDispatchFunctionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_HOST: !Ref DatabaseEndpoint
+          DB_PORT: !Ref DatabasePort
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
+          FETCH_JOBS_QUEUE_URL: !Ref RssFetchJobsQueue
+      Code:
+        S3Bucket: !Ref SourceDispatchFunctionCodeS3Bucket
+        S3Key: !Ref SourceDispatchFunctionCodeS3Key
+
+  SourceDispatchSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub "${ProjectName}-${StackSuffix}-source-dispatch"
+      Description: Periodically dispatches active RSS Content Sources.
+      ScheduleExpression: rate(15 minutes)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt SourceDispatchFunction.Arn
+          Id: SourceDispatch
+
+  SourceDispatchSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SourceDispatchFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt SourceDispatchSchedule.Arn
+
+  RssFetchFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-rss-fetch-function-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: FetchJobsConsume
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt RssFetchJobsQueue.Arn
+        - PolicyName: NormalizedContentItemsSend
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt NormalizedContentItemsQueue.Arn
+
+  RssFetchFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-rss-fetch"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.rss_fetch.handler.handler
+      Timeout: 60
+      Role: !GetAtt RssFetchFunctionRole.Arn
+      Environment:
+        Variables:
+          NORMALIZED_CONTENT_ITEMS_QUEUE_URL: !Ref NormalizedContentItemsQueue
+      Code:
+        S3Bucket: !Ref RssFetchFunctionCodeS3Bucket
+        S3Key: !Ref RssFetchFunctionCodeS3Key
+
+  RssFetchEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt RssFetchJobsQueue.Arn
+      FunctionName: !Ref RssFetchFunction
+      BatchSize: 5
+      FunctionResponseTypes:
+        - ReportBatchItemFailures
 
   ContentItemWriterFunctionRole:
     Type: AWS::IAM::Role
@@ -152,3 +329,15 @@ Outputs:
     Value: !Ref ContentItemWriterFunction
     Export:
       Name: !Sub "${AWS::StackName}-ContentItemWriterFunctionName"
+
+  SourceDispatchFunctionName:
+    Description: Lambda that dispatches active RSS Content Sources.
+    Value: !Ref SourceDispatchFunction
+    Export:
+      Name: !Sub "${AWS::StackName}-SourceDispatchFunctionName"
+
+  RssFetchJobsQueueUrl:
+    Description: URL for RSS fetch jobs.
+    Value: !Ref RssFetchJobsQueue
+    Export:
+      Name: !Sub "${AWS::StackName}-RssFetchJobsQueueUrl"

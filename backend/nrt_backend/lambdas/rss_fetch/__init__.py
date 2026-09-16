@@ -1,0 +1,1 @@
+"""RSS fetch Lambda package."""
