@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
+from psycopg import logger
+
 from nrt_backend.shared.database import connect
 
 
@@ -112,8 +114,10 @@ class ContentSourceRepository:
 
         try:
             with connection.cursor() as cursor:
+                logger.warning("Querying active RSS content sources from database")
                 cursor.execute(LIST_ACTIVE_RSS_SOURCES_SQL, ())
                 rows = cursor.fetchall()
+                logger.warning("Retrieved %s active RSS content sources from database", len(rows))
             return [
                 {
                     "id": str(source_id) if isinstance(source_id, UUID) else source_id,

@@ -61,7 +61,7 @@ def connect():
     psycopg = import_module("psycopg")
 
     logger.warning("Opening PostgreSQL connection")
-    return psycopg.connect(
+    connection = psycopg.connect(
         host=config["host"],
         port=config["port"],
         dbname=config["dbname"],
@@ -69,3 +69,6 @@ def connect():
         password=credentials["password"],
         connect_timeout=30,
     )
+
+    logger.warning("PostgreSQL connection established")
+    return connection
