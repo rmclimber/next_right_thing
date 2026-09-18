@@ -113,6 +113,7 @@ class ContentSourceRepository:
         connection = connect()
 
         try:
+            logger.warning("Entered repo try block")
             with connection.cursor() as cursor:
                 logger.warning("Querying active RSS content sources from database")
                 cursor.execute(LIST_ACTIVE_RSS_SOURCES_SQL, ())
