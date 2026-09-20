@@ -16,7 +16,7 @@ def handler(event, context):
     logger.warning("Initializing SQS client for dispatching normalized content items")
     client = _sqs_client()
     
-    logger.warning("Dispatching %s normalized content items to SQS queue: %s", len(items), queue_url)
+    logger.warning("Dispatching %s normalized content items to SQS queue: %s", len(sources), queue_url)
     sent_count = 0
     for source in sources:
         job = {
