@@ -138,14 +138,9 @@ def _send_items(items):
     if not items:
         return
     queue_url = _required_env("NORMALIZED_CONTENT_ITEMS_QUEUE_URL")
-    logger.warning("Initializing SQS client for dispatching normalized content items")
     client = _sqs_client()
-    logger.warning("Dispatching %s normalized content items to SQS queue: %s", len(items), queue_url)
-    sent_count = 0
     for item in items:
         client.send_message(QueueUrl=queue_url, MessageBody=json.dumps(item))
-        sent_count += 1
-    logger.warning("Successfully dispatched %s normalized content items to SQS queue: %s", sent_count, queue_url)
 
 
 def _entry_string(entry, field):
