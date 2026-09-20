@@ -148,7 +148,7 @@ Resources:
     Properties:
       Name: !Sub "${ProjectName}-${StackSuffix}-source-dispatch"
       Description: Periodically dispatches active RSS Content Sources.
-      ScheduleExpression: rate(15 minutes)
+      ScheduleExpression: rate(120 minutes)
       State: ENABLED
       Targets:
         - Arn: !GetAtt SourceDispatchFunction.Arn
