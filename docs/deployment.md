@@ -207,10 +207,12 @@ PostgreSQL runtime dependencies. The package key is derived from the Git commit
 SHA.
 
 The ingestion stack deploys the standard `nrt-<environment>-normalized-content-items`
-and `nrt-<environment>-rss-fetch-jobs` queues, a VPC-attached Source Dispatch
-Lambda and Content Item Writer Lambda, and a non-VPC RSS Fetch Lambda. All three
-artifacts use the backend packaging pattern and are keyed by Git commit SHA.
-EventBridge invokes the dispatcher every 15 minutes. The public fetcher remains
+and `nrt-<environment>-rss-fetch-jobs` queues, a non-VPC Source Dispatch Lambda,
+a VPC-attached Content Item Writer Lambda, and a non-VPC RSS Fetch Lambda. All
+three artifacts use the backend packaging pattern and are keyed by Git commit
+SHA. Source Dispatch uses the RDS Data API for its simple source-read query,
+while the Writer continues to use psycopg over the private Aurora connection.
+EventBridge invokes the dispatcher every 120 minutes. The public fetcher remains
 outside the VPC so public RSS access does not require a NAT Gateway; it has only
 permission to send normalized items. Both queues deliberately have no DLQ in
 this milestone. The normalized message contract is documented in

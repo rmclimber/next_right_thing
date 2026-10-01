@@ -3,7 +3,7 @@ import logging
 import os
 from importlib import import_module
 
-from nrt_backend.content_sources.repository import ContentSourceRepository
+from nrt_backend.lambdas.source_dispatch.repository import DataApiContentSourceRepository
 
 
 logger = logging.getLogger(__name__)
@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 
 def handler(event, context):
     queue_url = _required_env("FETCH_JOBS_QUEUE_URL")
-    sources = ContentSourceRepository().list_active_rss_sources()
+    sources = DataApiContentSourceRepository().list_active_rss_sources()
 
-    logger.warning("Initializing SQS client for dispatching normalized content items")
+    logger.warning("Initializing SQS client for dispatching RSS fetch jobs")
     client = _sqs_client()
     
-    logger.warning("Dispatching %s normalized content items to SQS queue: %s", len(sources), queue_url)
+    logger.warning("Dispatching %s RSS fetch jobs to SQS queue: %s", len(sources), queue_url)
     sent_count = 0
     for source in sources:
         job = {
@@ -33,7 +33,7 @@ def handler(event, context):
                 source["id"],
             )
             raise
-    logger.warning("Successfully dispatched %s normalized content items to SQS queue: %s", sent_count, queue_url)
+    logger.warning("Successfully dispatched %s RSS fetch jobs to SQS queue: %s", sent_count, queue_url)
 
     logger.info("RSS source dispatch completed: dispatched=%s", len(sources))
 

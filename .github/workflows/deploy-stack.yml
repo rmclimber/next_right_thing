@@ -206,6 +206,11 @@ jobs:
             --query "Stacks[0].Outputs[?OutputKey=='DatabaseEndpoint'].OutputValue" \
             --output text)
 
+          DATABASE_CLUSTER_ARN=$(aws cloudformation describe-stacks \
+            --stack-name database-${STACK_SUFFIX} \
+            --query "Stacks[0].Outputs[?OutputKey=='DatabaseClusterArn'].OutputValue" \
+            --output text)
+
           DATABASE_PORT=$(aws cloudformation describe-stacks \
             --stack-name database-${STACK_SUFFIX} \
             --query "Stacks[0].Outputs[?OutputKey=='DatabasePort'].OutputValue" \
@@ -227,6 +232,7 @@ jobs:
             --output text)
 
           echo "DATABASE_ENDPOINT=${DATABASE_ENDPOINT}" >> "$GITHUB_ENV"
+          echo "DATABASE_CLUSTER_ARN=${DATABASE_CLUSTER_ARN}" >> "$GITHUB_ENV"
           echo "DATABASE_PORT=${DATABASE_PORT}" >> "$GITHUB_ENV"
           echo "DATABASE_NAME=${DATABASE_NAME}" >> "$GITHUB_ENV"
           echo "DATABASE_SECRET_ARN=${DATABASE_SECRET_ARN}" >> "$GITHUB_ENV"
@@ -438,6 +444,7 @@ jobs:
               PrivateSubnetIds="${PRIVATE_SUBNET_IDS}" \
               LambdaSecurityGroupId="${LAMBDA_SECURITY_GROUP_ID}" \
               DatabaseEndpoint="${DATABASE_ENDPOINT}" \
+              DatabaseClusterArn="${DATABASE_CLUSTER_ARN}" \
               DatabasePort="${DATABASE_PORT}" \
               DatabaseName="${DATABASE_NAME}" \
               DatabaseSecretArn="${DATABASE_SECRET_ARN}" \
