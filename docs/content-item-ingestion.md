@@ -1,9 +1,9 @@
 # Content Item Ingestion Contract
 
 The `nrt-<environment>-normalized-content-items` SQS queue accepts one JSON
-object per message. The RSS Fetch Lambda is its current producer. Every 15
-minutes, EventBridge invokes the VPC-attached Source Dispatch Lambda, which
-queries active RSS Content Sources and sends one job per source to
+object per message. The RSS Fetch Lambda is its current producer. Every 120
+minutes, EventBridge invokes the non-VPC Source Dispatch Lambda, which uses the
+RDS Data API to query active RSS Content Sources and sends one job per source to
 `nrt-<environment>-rss-fetch-jobs`. The non-VPC RSS Fetch Lambda retrieves and
 normalizes RSS/Atom entries, then sends them to this queue.
 

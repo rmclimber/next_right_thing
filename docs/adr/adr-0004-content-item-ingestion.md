@@ -30,13 +30,14 @@ batch failures for SQS retry. Permanently malformed and ownership-invalid
 messages are safely logged and acknowledged. There is deliberately no DLQ in
 this initial milestone.
 
-An EventBridge rule invokes a VPC-attached Source Dispatch Lambda every 15
-minutes. It selects active RSS Content Sources and publishes a minimal fetch job
-to a second standard SQS queue. A non-VPC RSS Fetch Lambda consumes that queue,
-retrieves public RSS/Atom feeds, and publishes normalized Content Item messages
-to the existing queue. Keeping the fetcher outside the VPC provides public
-internet access without adding a NAT Gateway; it receives no database or
-Secrets Manager permissions.
+An EventBridge rule invokes a non-VPC Source Dispatch Lambda every 120 minutes.
+It uses the RDS Data API to select active RSS Content Sources and publishes a
+minimal fetch job to a second standard SQS queue. A non-VPC RSS Fetch Lambda
+consumes that queue, retrieves public RSS/Atom feeds, and publishes normalized
+Content Item messages to the existing queue. Keeping both dispatch and fetch
+outside the VPC provides their required AWS/public service access without adding
+a NAT Gateway; the dispatcher receives only RDS Data API and fetch-queue send
+permissions and never reads database credentials directly.
 
 ## Consequences
 

@@ -19,7 +19,7 @@ class SourceDispatchHandlerTests(unittest.TestCase):
         ]
         sqs = Mock()
         with (
-            patch.object(dispatch_handler, "ContentSourceRepository", return_value=repository),
+            patch.object(dispatch_handler, "DataApiContentSourceRepository", return_value=repository),
             patch.object(dispatch_handler, "_sqs_client", return_value=sqs),
         ):
             dispatch_handler.handler({}, None)
@@ -34,7 +34,7 @@ class SourceDispatchHandlerTests(unittest.TestCase):
         repository.list_active_rss_sources.return_value = []
         sqs = Mock()
         with (
-            patch.object(dispatch_handler, "ContentSourceRepository", return_value=repository),
+            patch.object(dispatch_handler, "DataApiContentSourceRepository", return_value=repository),
             patch.object(dispatch_handler, "_sqs_client", return_value=sqs),
         ):
             dispatch_handler.handler({}, None)
@@ -43,9 +43,22 @@ class SourceDispatchHandlerTests(unittest.TestCase):
     def test_database_failure_surfaces(self):
         repository = Mock()
         repository.list_active_rss_sources.side_effect = RuntimeError("database unavailable")
-        with patch.object(dispatch_handler, "ContentSourceRepository", return_value=repository):
+        with patch.object(dispatch_handler, "DataApiContentSourceRepository", return_value=repository):
             with self.assertRaisesRegex(RuntimeError, "database unavailable"):
                 dispatch_handler.handler({}, None)
+
+    def test_uses_the_data_api_repository_instead_of_the_shared_postgresql_path(self):
+        repository = Mock()
+        repository.list_active_rss_sources.return_value = []
+        sqs = Mock()
+
+        with (
+            patch.object(dispatch_handler, "DataApiContentSourceRepository", return_value=repository),
+            patch.object(dispatch_handler, "_sqs_client", return_value=sqs),
+        ):
+            dispatch_handler.handler({}, None)
+
+        repository.list_active_rss_sources.assert_called_once_with()
 
     def test_sqs_failure_surfaces(self):
         repository = Mock()
@@ -53,7 +66,7 @@ class SourceDispatchHandlerTests(unittest.TestCase):
         sqs = Mock()
         sqs.send_message.side_effect = RuntimeError("SQS unavailable")
         with (
-            patch.object(dispatch_handler, "ContentSourceRepository", return_value=repository),
+            patch.object(dispatch_handler, "DataApiContentSourceRepository", return_value=repository),
             patch.object(dispatch_handler, "_sqs_client", return_value=sqs),
             self.assertRaisesRegex(RuntimeError, "SQS unavailable"),
         ):

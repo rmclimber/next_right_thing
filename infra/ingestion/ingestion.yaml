@@ -14,6 +14,10 @@ Parameters:
     Type: String
     Description: Aurora PostgreSQL writer endpoint.
 
+  DatabaseClusterArn:
+    Type: String
+    Description: Aurora PostgreSQL cluster ARN for RDS Data API statements.
+
   DatabasePort:
     Type: Number
     Description: Aurora PostgreSQL port.
@@ -93,22 +97,13 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                 Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
-        - PolicyName: LambdaVpcNetworking
+        - PolicyName: DataApiReadActiveRssSources
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action:
-                  - ec2:CreateNetworkInterface
-                  - ec2:DescribeNetworkInterfaces
-                  - ec2:DeleteNetworkInterface
-                  - ec2:AssignPrivateIpAddresses
-                  - ec2:UnassignPrivateIpAddresses
-                Resource: "*"
-        - PolicyName: DatabaseSecretRead
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
+                Action: rds-data:ExecuteStatement
+                Resource: !Ref DatabaseClusterArn
               - Effect: Allow
                 Action: secretsmanager:GetSecretValue
                 Resource: !Ref DatabaseSecretArn
@@ -128,14 +123,9 @@ Resources:
       Handler: nrt_backend.lambdas.source_dispatch.handler.handler
       Timeout: 60
       Role: !GetAtt SourceDispatchFunctionRole.Arn
-      VpcConfig:
-        SecurityGroupIds:
-          - !Ref LambdaSecurityGroupId
-        SubnetIds: !Ref PrivateSubnetIds
       Environment:
         Variables:
-          DB_HOST: !Ref DatabaseEndpoint
-          DB_PORT: !Ref DatabasePort
+          DATABASE_CLUSTER_ARN: !Ref DatabaseClusterArn
           DB_NAME: !Ref DatabaseName
           DB_SECRET_ARN: !Ref DatabaseSecretArn
           FETCH_JOBS_QUEUE_URL: !Ref RssFetchJobsQueue

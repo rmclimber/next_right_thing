@@ -91,8 +91,8 @@ RSS ingestion uses a private-source/public-fetch/private-write pipeline:
 
 ```
 Aurora Content Sources
-    ↓
-Source Dispatch Lambda (VPC-attached)
+    ↓ RDS Data API
+Source Dispatch Lambda (non-VPC)
     ↓
 rss-fetch-jobs SQS
     ↓
@@ -105,10 +105,13 @@ Content Item Writer Lambda (VPC-attached)
 Aurora Content Items
 ```
 
-The dispatcher and writer use private subnets because they access Aurora and
-Secrets Manager. The RSS Fetch Lambda has no VPC configuration or database
-access, so it can reach public feeds without a NAT Gateway. The normalized
-message contract is documented in `docs/content-item-ingestion.md`.
+Source Dispatch is a targeted non-VPC exception: it uses the RDS Data API for
+its simple active-RSS-source read, then sends fetch jobs to SQS through
+AWS-managed networking. The Content Item Writer remains VPC-attached and uses
+psycopg with the Aurora endpoint and Secrets Manager credentials. The RSS Fetch
+Lambda has no VPC configuration or database access, so it can reach public
+feeds without a NAT Gateway. The normalized message contract is documented in
+`docs/content-item-ingestion.md`.
 
 ---
 

@@ -75,6 +75,7 @@ Resources:
       DBClusterIdentifier: !Sub "${ProjectName}-${StackSuffix}-database"
       Engine: aurora-postgresql
       EngineMode: provisioned
+      EnableHttpEndpoint: true
       DatabaseName: !Ref DatabaseName
       MasterUsername: nrt_admin
       ManageMasterUserPassword: true
