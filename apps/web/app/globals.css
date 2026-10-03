@@ -327,6 +327,69 @@ dd {
   background: #fbfcfe;
 }
 
+.empty-state-action {
+  margin-top: 16px;
+}
+
+.error-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.content-items-section {
+  margin-top: 32px;
+}
+
+.content-items-list {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.content-item {
+  padding: 20px;
+  border: 1px solid #e1e5ed;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.content-item h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+.content-item h3 a,
+.content-item-link {
+  color: #185abc;
+}
+
+.content-item-summary {
+  margin: 12px 0 0;
+  color: #4d5a70;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.content-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 14px;
+  color: #5d6980;
+  font-size: 0.85rem;
+}
+
+.content-item-link {
+  display: inline-block;
+  margin-top: 14px;
+}
+
 @media (max-width: 520px) {
   .page-shell {
     padding: 16px;

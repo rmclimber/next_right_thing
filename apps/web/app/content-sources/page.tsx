@@ -262,6 +262,9 @@ export default function ContentSourcesPage() {
             <Link className="button" href="/dashboard">
               Goals
             </Link>
+            <Link className="button" href="/content-items">
+              Content Items
+            </Link>
             <button className="button" type="button" onClick={handleSignOut}>
               Sign Out
             </button>

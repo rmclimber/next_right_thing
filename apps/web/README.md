@@ -1,7 +1,7 @@
 # NRT Web
 
 Minimal Next.js application for Cognito Hosted UI authentication and the
-authenticated Goals experience.
+authenticated Goals, Content Sources, and Content Items experiences.
 
 ## Configuration
 
@@ -28,4 +28,5 @@ pnpm dev
 ```
 
 Then open `http://localhost:3000`, sign in, and verify that the dashboard
-loads the authenticated user's Goals.
+loads the authenticated user's Goals. The authenticated navigation also links
+to Content Sources and Content Items; Content Items load from `GET /content-items`.
