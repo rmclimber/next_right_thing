@@ -30,6 +30,26 @@ function summaryAsPlainText(summary: string | null): string | null {
   return normalized || null;
 }
 
+function newestDiscoveredFirst(items: ContentItem[]): ContentItem[] {
+  return [...items].sort((left, right) => {
+    const discoveredAtDifference =
+      new Date(right.discovered_at).getTime() - new Date(left.discovered_at).getTime();
+
+    if (discoveredAtDifference !== 0) {
+      return discoveredAtDifference;
+    }
+
+    const createdAtDifference =
+      new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+
+    if (createdAtDifference !== 0) {
+      return createdAtDifference;
+    }
+
+    return left.id.localeCompare(right.id);
+  });
+}
+
 export default function ContentItemsPage() {
   const router = useRouter();
   const [state, setState] = useState<ContentItemsState>({ status: "loading" });
@@ -45,7 +65,7 @@ export default function ContentItemsPage() {
         const response = await listContentItems();
 
         if (active) {
-          setState({ status: "ready", items: response.content_items });
+          setState({ status: "ready", items: newestDiscoveredFirst(response.content_items) });
         }
       } catch (caught) {
         if (!active) {
