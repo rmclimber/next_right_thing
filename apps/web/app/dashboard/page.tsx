@@ -252,6 +252,9 @@ export default function Dashboard() {
             <Link className="button" href="/content-sources">
               Content Sources
             </Link>
+            <Link className="button" href="/content-items">
+              Content Items
+            </Link>
             <button className="button" type="button" onClick={handleSignOut}>
               Sign Out
             </button>
