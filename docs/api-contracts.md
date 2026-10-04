@@ -1,5 +1,42 @@
 # API
 
+## GET /recommendations/next
+
+Requires a valid Cognito access token in the `Authorization: Bearer <token>`
+header. The token must include the `aws.cognito.signin.user.admin` scope.
+Ownership is derived exclusively from
+`requestContext.authorizer.jwt.claims.sub`; callers cannot supply a `user_id`.
+
+Required query parameter:
+
+- `available_minutes`: integer from `1` through `240`, inclusive.
+
+Success response: `200 OK`
+
+```json
+{
+  "recommendation": {
+    "recommendation_event_id": "550e8400-e29b-41d4-a716-446655440000",
+    "action_type": "read_content_item",
+    "content_item": {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "title": "Example title",
+      "url": "https://example.com/article",
+      "summary": "Optional summary",
+      "published_at": "2026-10-02T12:00:00+00:00",
+      "discovered_at": "2026-10-02T13:00:00+00:00"
+    },
+    "estimated_duration_minutes": 5,
+    "reason": "Recent item that fits your 20-minute window."
+  }
+}
+```
+
+When the authenticated user has no Content Items, the endpoint returns `200 OK`
+with `{ "recommendation": null }` and does not create a Recommendation Event.
+Invalid `available_minutes` values return `400 Bad Request` with a JSON
+`message`. Internal failures return a generic `500 Internal Server Error`.
+
 ## GET /content-items
 
 Requires a valid Cognito access token in the `Authorization: Bearer <token>` header.

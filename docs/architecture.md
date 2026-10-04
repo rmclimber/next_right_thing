@@ -70,6 +70,23 @@ Responsibilities:
 - Incorporate user preferences
 - Produce recommendation explanations
 
+The initial service is invoked synchronously by the authenticated
+`GET /recommendations/next` API Lambda. It loads bounded, user-scoped Content
+Items and active Goals from Aurora, derives ephemeral Candidate Actions, ranks
+them deterministically, and persists only the selected Recommendation Event.
+
+The deterministic v1 score is `0.40 * recency + 0.35 * goal relevance + 0.25
+* duration fit`, with each component bounded from 0 to 1. Recency is 1.0 for
+items under one day old, 0.7 under seven days, 0.4 under 30 days, and 0.1
+otherwise, using `published_at` or `discovered_at` as a fallback. Goal relevance
+is lexical overlap between normalized title/summary and active Goal
+title/description tokens. Reading duration uses summary word count at 225 words
+per minute, defaulting to five minutes when no summary exists. A fitting item
+scores from 0.5 to 1.0 according to how closely it fills the time window; an
+item up to 25% over scores 0.25, and longer items score zero. Ties sort by
+total score descending, then `discovered_at` descending, `created_at`
+descending, and Content Item ID ascending.
+
 Does not:
 
 - Render UI
