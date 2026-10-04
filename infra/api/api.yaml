@@ -79,6 +79,14 @@ Parameters:
     Type: String
     Description: S3 key for the ContentItemsFunction deployment package.
 
+  RecommendationsFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the RecommendationsFunction deployment package.
+
+  RecommendationsFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the RecommendationsFunction deployment package.
+
 Resources:
   MeFunctionRole:
     Type: AWS::IAM::Role
@@ -324,6 +332,67 @@ Resources:
         S3Bucket: !Ref ContentItemsFunctionCodeS3Bucket
         S3Key: !Ref ContentItemsFunctionCodeS3Key
 
+  RecommendationsFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-${StackSuffix}-api-recommendations-function-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*"
+        - PolicyName: LambdaVpcNetworking
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+
+  RecommendationsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-api-recommendations"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.recommendations.handler.handler
+      Timeout: 45
+      Role: !GetAtt RecommendationsFunctionRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroupId
+        SubnetIds: !Ref PrivateSubnetIds
+      Environment:
+        Variables:
+          DB_HOST: !Ref DatabaseEndpoint
+          DB_PORT: !Ref DatabasePort
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
+      Code:
+        S3Bucket: !Ref RecommendationsFunctionCodeS3Bucket
+        S3Key: !Ref RecommendationsFunctionCodeS3Key
+
   HttpApi:
     Type: AWS::ApiGatewayV2::Api
     Properties:
@@ -438,6 +507,16 @@ Resources:
         - FunctionArn: !GetAtt ContentItemsFunction.Arn
       PayloadFormatVersion: '2.0'
 
+  RecommendationsIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub
+        - "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FunctionArn}/invocations"
+        - FunctionArn: !GetAtt RecommendationsFunction.Arn
+      PayloadFormatVersion: '2.0'
+
   CreateContentSourceRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -481,6 +560,17 @@ Resources:
       AuthorizationScopes:
         - aws.cognito.signin.user.admin
       Target: !Sub "integrations/${ContentItemsIntegration}"
+
+  NextRecommendationRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: GET /recommendations/next
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${RecommendationsIntegration}"
 
   DefaultStage:
     Type: AWS::ApiGatewayV2::Stage
@@ -537,6 +627,14 @@ Resources:
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/GET/content-items"
 
+  RecommendationsFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref RecommendationsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/GET/recommendations/next"
+
 Outputs:
   ApiEndpoint:
     Description: Base URL for the authenticated HTTP API.
@@ -557,3 +655,7 @@ Outputs:
   ContentItemsEndpoint:
     Description: Authenticated endpoint for Content Item listing.
     Value: !Sub "${HttpApi.ApiEndpoint}/content-items"
+
+  RecommendationsEndpoint:
+    Description: Authenticated endpoint for the next recommendation.
+    Value: !Sub "${HttpApi.ApiEndpoint}/recommendations/next"

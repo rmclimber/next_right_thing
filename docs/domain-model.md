@@ -199,6 +199,18 @@ Recommendation Events are used to:
 - avoid excessive repetition
 - evaluate recommendation quality
 
+For the first recommendation slice, a Recommendation Event records a durable
+`read_content_item` decision, its available-time context, estimated duration,
+deterministic score, explanation, and optional future outcome. The referenced
+Candidate Action itself is not persisted.
+
+### Candidate Action
+
+A Candidate Action is an ephemeral internal representation of one actionable
+option considered during a recommendation request. The first implementation
+derives only `read_content_item` Candidate Actions from a user's Content Items.
+Candidate Actions are not database entities and are discarded after ranking.
+
 ### Action
 
 An Action represents a professional activity that a user could perform.

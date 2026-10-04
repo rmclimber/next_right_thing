@@ -371,6 +371,27 @@ jobs:
         run: |
           aws s3 cp "${CONTENT_ITEMS_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${CONTENT_ITEMS_ARTIFACT_KEY}"
 
+      - name: Build Recommendations Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          RECOMMENDATIONS_ARTIFACT_KEY="lambda/recommendations/${GITHUB_SHA}.zip"
+          RECOMMENDATIONS_ARTIFACT_PATH="dist/lambda/recommendations.zip"
+
+          rm -rf dist/lambda/recommendations "${RECOMMENDATIONS_ARTIFACT_PATH}"
+          mkdir -p dist/lambda/recommendations
+          python -m pip install --upgrade pip
+          python -m pip install --target dist/lambda/recommendations ./backend
+
+          (cd dist/lambda/recommendations && zip -r ../recommendations.zip .)
+
+          echo "RECOMMENDATIONS_ARTIFACT_KEY=${RECOMMENDATIONS_ARTIFACT_KEY}" >> "$GITHUB_ENV"
+          echo "RECOMMENDATIONS_ARTIFACT_PATH=${RECOMMENDATIONS_ARTIFACT_PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload Recommendations Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          aws s3 cp "${RECOMMENDATIONS_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${RECOMMENDATIONS_ARTIFACT_KEY}"
+
       - name: Build Content Item Writer Lambda Artifact
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
@@ -480,7 +501,9 @@ jobs:
               ContentSourcesFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
               ContentSourcesFunctionCodeS3Key="${CONTENT_SOURCES_ARTIFACT_KEY}" \
               ContentItemsFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
-              ContentItemsFunctionCodeS3Key="${CONTENT_ITEMS_ARTIFACT_KEY}"
+              ContentItemsFunctionCodeS3Key="${CONTENT_ITEMS_ARTIFACT_KEY}" \
+              RecommendationsFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              RecommendationsFunctionCodeS3Key="${RECOMMENDATIONS_ARTIFACT_KEY}"
 
       - name: Read API Stack Outputs
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
