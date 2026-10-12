@@ -379,6 +379,10 @@ Resources:
       Handler: nrt_backend.lambdas.recommendations.handler.handler
       Timeout: 45
       Role: !GetAtt RecommendationsFunctionRole.Arn
+      LoggingConfig:
+        LogFormat: JSON
+        ApplicationLogLevel: INFO
+        SystemLogLevel: WARN
       VpcConfig:
         SecurityGroupIds:
           - !Ref LambdaSecurityGroupId

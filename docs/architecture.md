@@ -74,6 +74,9 @@ The initial service is invoked synchronously by the authenticated
 `GET /recommendations/next` API Lambda. It loads bounded, user-scoped Content
 Items and active Goals from Aurora, derives ephemeral Candidate Actions, ranks
 them deterministically, and persists only the selected Recommendation Event.
+Its Lambda uses JSON application logs at `INFO` for the bounded candidate, Goal
+count, selection, and event-persistence operational messages; Lambda system
+logs remain at `WARN`.
 
 The deterministic v1 score is `0.40 * recency + 0.35 * goal relevance + 0.25
 * duration fit`, with each component bounded from 0 to 1. Recency is 1.0 for
