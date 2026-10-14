@@ -249,6 +249,9 @@ export default function Dashboard() {
             <h1>Goals</h1>
           </div>
           <div className="header-actions">
+            <Link className="button primary" href="/recommendations">
+              Next Right Thing
+            </Link>
             <Link className="button" href="/content-sources">
               Content Sources
             </Link>

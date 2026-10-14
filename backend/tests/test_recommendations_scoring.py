@@ -15,9 +15,12 @@ def item(item_id="item-a", published_at=NOW, discovered_at=NOW, summary="Learn p
 
 class CandidateTests(unittest.TestCase):
     def test_content_item_becomes_read_candidate_with_deterministic_duration(self):
-        candidate = candidate_from_content_item(item(summary="word " * 226))
+        candidate = candidate_from_content_item(item(summary="word " * 1126))
         self.assertEqual(candidate.action_type, "read_content_item")
-        self.assertEqual(candidate.estimated_duration_minutes, 2)
+        self.assertEqual(candidate.estimated_duration_minutes, 6)
+
+    def test_short_summary_uses_five_minute_minimum(self):
+        self.assertEqual(estimate_reading_duration("Brief feed excerpt"), 5)
 
     def test_nullable_summary_and_published_at_are_supported(self):
         candidate = candidate_from_content_item(item(summary=None, published_at=None))

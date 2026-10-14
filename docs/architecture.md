@@ -84,7 +84,8 @@ items under one day old, 0.7 under seven days, 0.4 under 30 days, and 0.1
 otherwise, using `published_at` or `discovered_at` as a fallback. Goal relevance
 is lexical overlap between normalized title/summary and active Goal
 title/description tokens. Reading duration uses summary word count at 225 words
-per minute, defaulting to five minutes when no summary exists. A fitting item
+per minute, with a five-minute minimum because feed summaries are often
+truncated excerpts. A fitting item
 scores from 0.5 to 1.0 according to how closely it fills the time window; an
 item up to 25% over scores 0.25, and longer items score zero. Ties sort by
 total score descending, then `discovered_at` descending, `created_at`

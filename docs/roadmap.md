@@ -16,3 +16,11 @@ Have Codex:
 
 ## Phase 4: 
 Use app personally for a few weeks.
+
+## Phase 5: Content usefulness improvements
+
+- Improve article-duration estimates by using the full RSS/Atom entry content
+  when available, storing a derived word count, and retaining a conservative
+  fallback for feeds that provide only excerpts.
+- Let users bookmark specific Content Items so they can return to valuable
+  material later.

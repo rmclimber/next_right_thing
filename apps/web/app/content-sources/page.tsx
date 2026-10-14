@@ -259,6 +259,9 @@ export default function ContentSourcesPage() {
             <h1>Content Sources</h1>
           </div>
           <div className="header-actions">
+            <Link className="button primary" href="/recommendations">
+              Next Right Thing
+            </Link>
             <Link className="button" href="/dashboard">
               Goals
             </Link>

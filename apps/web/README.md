@@ -1,7 +1,8 @@
 # NRT Web
 
 Minimal Next.js application for Cognito Hosted UI authentication and the
-authenticated Goals, Content Sources, and Content Items experiences.
+authenticated Next Right Thing recommendation, Goals, Content Sources, and Content
+Items experiences.
 
 ## Configuration
 
@@ -28,5 +29,7 @@ pnpm dev
 ```
 
 Then open `http://localhost:3000`, sign in, and verify that the dashboard
-loads the authenticated user's Goals. The authenticated navigation also links
-to Content Sources and Content Items; Content Items load from `GET /content-items`.
+opens the Next Right Thing recommendation experience. Select an available-time
+preset or enter 1–240 custom minutes, then request a recommendation from
+`GET /recommendations/next`. The authenticated navigation also links to Goals,
+Content Sources, and Content Items.
