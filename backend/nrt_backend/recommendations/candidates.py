@@ -38,9 +38,10 @@ def candidate_from_content_item(item: dict) -> CandidateAction:
 
 
 def estimate_reading_duration(summary: str | None) -> int:
-    """Estimate summary reading time at 225 words/minute, defaulting to 5 minutes."""
+    """Estimate article reading time from its summary, with a five-minute minimum."""
     if not summary or not summary.strip():
         return DEFAULT_DURATION_MINUTES
 
     word_count = len(re.findall(r"\b[\w']+\b", summary))
-    return max(1, (word_count + WORDS_PER_MINUTE - 1) // WORDS_PER_MINUTE)
+    summary_estimate = (word_count + WORDS_PER_MINUTE - 1) // WORDS_PER_MINUTE
+    return max(DEFAULT_DURATION_MINUTES, summary_estimate)

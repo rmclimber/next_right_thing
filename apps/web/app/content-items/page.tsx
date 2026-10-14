@@ -108,6 +108,9 @@ export default function ContentItemsPage() {
             <h1>Content Items</h1>
           </div>
           <div className="header-actions">
+            <Link className="button primary" href="/recommendations">
+              Next Right Thing
+            </Link>
             <Link className="button" href="/dashboard">
               Goals
             </Link>

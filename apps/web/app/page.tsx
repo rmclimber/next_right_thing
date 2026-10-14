@@ -56,8 +56,8 @@ export default function Home() {
         <div className="actions">
           {authState === "signed-in" ? (
             <>
-              <Link className="button primary" href="/dashboard">
-                Dashboard
+              <Link className="button primary" href="/recommendations">
+                Next Right Thing
               </Link>
               <button className="button" type="button" onClick={handleSignOut}>
                 Sign Out
