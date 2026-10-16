@@ -42,7 +42,7 @@ def upgrade() -> None:
         sa.Column("occurred_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("event_type IN ('snoozed', 'completed', 'archived')", name="ck_user_action_events_event_type"),
         sa.ForeignKeyConstraint(["content_item_id"], ["content_items.id"], name="fk_user_action_events_content_item_id_content_items"),
-        sa.ForeignKeyConstraint(["recommendation_event_id"], ["recommendation_events.id"], name="fk_user_action_events_recommendation_event_id_recommendation_events"),
+        sa.ForeignKeyConstraint(["recommendation_event_id"], ["recommendation_events.id"], name="fk_user_action_events_recommendation_event"),
         sa.PrimaryKeyConstraint("id"),
     )
 
