@@ -408,7 +408,6 @@ Resources:
           - content-type
         AllowMethods:
           - GET
-          - POST
           - PATCH
           - POST
           - OPTIONS
