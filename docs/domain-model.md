@@ -190,7 +190,7 @@ A Recommendation Event records:
 - the context in which it was recommended
 - how the user responded
 
-Recommendation Events are immutable historical records, except for the user's eventual outcome.
+Recommendation Events are immutable historical records of what NRT recommended.
 
 Recommendation Events are used to:
 
@@ -210,6 +210,21 @@ A Candidate Action is an ephemeral internal representation of one actionable
 option considered during a recommendation request. The first implementation
 derives only `read_content_item` Candidate Actions from a user's Content Items.
 Candidate Actions are not database entities and are discarded after ranking.
+
+### Content Item User State
+
+Content Item User State is the mutable current disposition of one Content Item
+for one User. It is `active`, `completed`, or `archived`. Snooze is temporal
+eligibility rather than a permanent status: an active item with a future
+`snoozed_until` is temporarily ineligible. `completed` is intentionally generic
+and applies to any activity type, not only reading.
+
+### User Action Event
+
+A User Action Event is an immutable record of a user's disposition action:
+`snoozed`, `completed`, or `archived`. It may link to the Recommendation Event
+that prompted it. It does not replace Recommendation Event history or mutable
+Content Item User State.
 
 ### Action
 

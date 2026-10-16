@@ -7,10 +7,18 @@ from nrt_backend.shared.database import connect
 CANDIDATE_POOL_LIMIT = 50
 
 LIST_RECENT_CONTENT_ITEMS_SQL = """
-SELECT id, title, url, summary, published_at, discovered_at, created_at
+SELECT content_items.id, content_items.title, content_items.url, content_items.summary,
+       content_items.published_at, content_items.discovered_at, content_items.created_at
 FROM content_items
-WHERE user_id = %s
-ORDER BY discovered_at DESC, created_at DESC, id DESC
+LEFT JOIN content_item_user_state
+  ON content_item_user_state.content_item_id = content_items.id
+ AND content_item_user_state.user_id = content_items.user_id
+WHERE content_items.user_id = %s
+  AND (content_item_user_state.content_item_id IS NULL OR (
+       content_item_user_state.status = 'active'
+       AND (content_item_user_state.snoozed_until IS NULL OR content_item_user_state.snoozed_until <= NOW())
+  ))
+ORDER BY content_items.discovered_at DESC, content_items.created_at DESC, content_items.id DESC
 LIMIT %s;
 """
 

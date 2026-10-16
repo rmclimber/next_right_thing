@@ -1,5 +1,43 @@
 # API
 
+## POST /content-items/{id}/actions
+
+Requires the standard authenticated Cognito access token. The Content Item is
+scoped to the authenticated JWT `sub`; inaccessible and nonexistent items both
+return `404`. The client cannot provide a `user_id`.
+
+Request body:
+
+```json
+{
+  "action": "complete",
+  "recommendation_event_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+`action` is required and must be `snooze`, `complete`, or `archive`.
+`recommendation_event_id` is optional; when supplied it must belong to the user
+and reference the same Content Item, otherwise the request returns `400`.
+Snooze makes the item temporarily ineligible for exactly 24 hours. Complete and
+archive make it ineligible permanently. A successful request atomically updates
+the current state and creates an immutable User Action Event.
+
+Success response: `200 OK`
+
+```json
+{
+  "content_item_state": {
+    "content_item_id": "550e8400-e29b-41d4-a716-446655440001",
+    "status": "completed",
+    "snoozed_until": null,
+    "completed_at": "2026-10-16T12:00:00+00:00"
+  }
+}
+```
+
+Malformed requests and unsupported actions return `400`; internal failures
+return a generic `500 Internal Server Error`.
+
 ## GET /recommendations/next
 
 Requires a valid Cognito access token in the `Authorization: Bearer <token>`
