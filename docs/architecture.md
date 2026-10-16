@@ -90,6 +90,10 @@ scores from 0.5 to 1.0 according to how closely it fills the time window; an
 item up to 25% over scores 0.25, and longer items score zero. Ties sort by
 total score descending, then `discovered_at` descending, `created_at`
 descending, and Content Item ID ascending.
+Candidate selection excludes Content Items whose user state is completed,
+archived, or actively snoozed until a future time. This eligibility filtering is
+performed in the bounded Aurora query; expired snoozes become eligible without a
+background job.
 
 Does not:
 

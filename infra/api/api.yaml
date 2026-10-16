@@ -408,6 +408,7 @@ Resources:
           - content-type
         AllowMethods:
           - GET
+          - POST
           - PATCH
           - POST
           - OPTIONS
@@ -565,6 +566,17 @@ Resources:
         - aws.cognito.signin.user.admin
       Target: !Sub "integrations/${ContentItemsIntegration}"
 
+  ContentItemActionRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: POST /content-items/{id}/actions
+      AuthorizationType: JWT
+      AuthorizerId: !Ref JwtAuthorizer
+      AuthorizationScopes:
+        - aws.cognito.signin.user.admin
+      Target: !Sub "integrations/${ContentItemsIntegration}"
+
   NextRecommendationRoute:
     Type: AWS::ApiGatewayV2::Route
     Properties:
@@ -630,6 +642,14 @@ Resources:
       FunctionName: !Ref ContentItemsFunction
       Principal: apigateway.amazonaws.com
       SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/GET/content-items"
+
+  ContentItemActionFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ContentItemsFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/POST/content-items/*/actions"
 
   RecommendationsFunctionPermission:
     Type: AWS::Lambda::Permission

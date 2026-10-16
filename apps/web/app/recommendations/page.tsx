@@ -6,7 +6,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { getCurrentUser, signOut } from "aws-amplify/auth";
 
 import { configureAmplify } from "@/lib/amplify-client";
-import { getNextRecommendation, Recommendation } from "@/lib/recommendations-api";
+import { applyContentItemAction, ContentItemAction, getNextRecommendation, Recommendation } from "@/lib/recommendations-api";
 
 const presetDurations = [5, 15, 30, 60];
 
@@ -42,7 +42,9 @@ export default function RecommendationsPage() {
     undefined,
   );
   const [requestError, setRequestError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
+  const [isApplyingAction, setIsApplyingAction] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -106,6 +108,20 @@ export default function RecommendationsPage() {
   function requestRecommendation(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     void loadRecommendation();
+  }
+
+  async function applyAction(action: ContentItemAction) {
+    if (!recommendation || isApplyingAction) return;
+    setActionError(null);
+    try {
+      setIsApplyingAction(true);
+      await applyContentItemAction(recommendation.content_item.id, action, recommendation.recommendation_event_id);
+      await loadRecommendation();
+    } catch {
+      setActionError("That action could not be saved. Please try again.");
+    } finally {
+      setIsApplyingAction(false);
+    }
   }
 
   return (
@@ -181,13 +197,13 @@ export default function RecommendationsPage() {
           </div>
         ) : null}
 
-        {recommendation ? <RecommendationCard recommendation={recommendation} /> : null}
+        {recommendation ? <RecommendationCard recommendation={recommendation} onAction={applyAction} isApplyingAction={isApplyingAction} actionError={actionError} /> : null}
       </section>
     </main>
   );
 }
 
-function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
+function RecommendationCard({ recommendation, onAction, isApplyingAction, actionError }: { recommendation: Recommendation; onAction: (action: ContentItemAction) => void; isApplyingAction: boolean; actionError: string | null }) {
   const summary = summaryAsPlainText(recommendation.content_item.summary);
 
   if (recommendation.action_type !== "read_content_item") {
@@ -201,9 +217,13 @@ function RecommendationCard({ recommendation }: { recommendation: Recommendation
       <p className="recommendation-duration">About {recommendation.estimated_duration_minutes} min</p>
       <p className="recommendation-reason">{recommendation.reason}</p>
       {summary ? <p className="content-item-summary">{summary}</p> : null}
-      <a className="button primary" href={recommendation.content_item.url} target="_blank" rel="noopener noreferrer">
-        Read article
-      </a>
+      {actionError ? <p className="error compact-error">{actionError}</p> : null}
+      <div className="form-actions">
+        <a className="button primary" href={recommendation.content_item.url} target="_blank" rel="noopener noreferrer">Open</a>
+        <button className="button" type="button" disabled={isApplyingAction} onClick={() => onAction("complete")}>{isApplyingAction ? "Saving..." : "Complete"}</button>
+        <button className="button" type="button" disabled={isApplyingAction} onClick={() => onAction("snooze")}>Snooze</button>
+        <button className="button" type="button" disabled={isApplyingAction} onClick={() => onAction("archive")}>Archive</button>
+      </div>
     </section>
   );
 }

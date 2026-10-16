@@ -35,8 +35,10 @@ class RecommendationRepositoryTests(unittest.TestCase):
         with patch.object(repository, "connect", return_value=FakeConnection(cursor)):
             RecommendationRepository().list_recent_content_items("user-a")
         query, params = cursor.executions[0]
-        self.assertIn("WHERE user_id = %s", query)
-        self.assertIn("ORDER BY discovered_at DESC, created_at DESC, id DESC", query)
+        self.assertIn("WHERE content_items.user_id = %s", query)
+        self.assertIn("LEFT JOIN content_item_user_state", query)
+        self.assertIn("snoozed_until <= NOW()", query)
+        self.assertIn("ORDER BY content_items.discovered_at DESC", query)
         self.assertIn("LIMIT %s", query)
         self.assertEqual(params, ("user-a", 50))
 
