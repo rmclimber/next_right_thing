@@ -113,7 +113,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
         self.assertFalse(connection.rolled_back)
         self.assertTrue(connection.closed)
 
-    def test_list_scopes_by_user_and_serializes_nullable_fields(self):
+    def test_list_returns_default_active_state_without_a_state_row(self):
         item_id = UUID("11111111-1111-1111-1111-111111111111")
         source_id = UUID("22222222-2222-2222-2222-222222222222")
         discovered_at = datetime(2026, 9, 15, 13, 0, tzinfo=timezone.utc)
@@ -122,6 +122,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
                 (
                     item_id, source_id, "feed-guid", "Example title", "https://example.com/post",
                     None, None, discovered_at, discovered_at, discovered_at,
+                    "active", None, None,
                 )
             ]
         )
@@ -131,16 +132,53 @@ class ContentItemRepositoryTests(unittest.TestCase):
             result = ContentItemRepository().list_for_user("cognito-user-sub")
 
         query, params = cursor.executions[0]
-        self.assertIn("WHERE user_id = %s", query)
-        self.assertIn("ORDER BY discovered_at DESC, created_at DESC, id DESC", query)
+        self.assertIn("LEFT JOIN content_item_user_state", query)
+        self.assertIn("content_item_user_state.user_id = %s", query)
+        self.assertIn("WHERE content_items.user_id = %s", query)
+        self.assertIn("ORDER BY content_items.discovered_at DESC, content_items.created_at DESC, content_items.id DESC", query)
         self.assertNotIn("cognito-user-sub", query)
-        self.assertEqual(params, ("cognito-user-sub",))
+        self.assertEqual(params, ("cognito-user-sub", "cognito-user-sub"))
         self.assertEqual(result[0]["id"], str(item_id))
         self.assertEqual(result[0]["content_source_id"], str(source_id))
         self.assertIsNone(result[0]["summary"])
         self.assertIsNone(result[0]["published_at"])
         self.assertEqual(result[0]["discovered_at"], "2026-09-15T13:00:00+00:00")
+        self.assertEqual(result[0]["status"], "active")
+        self.assertIsNone(result[0]["snoozed_until"])
+        self.assertIsNone(result[0]["completed_at"])
         self.assertTrue(connection.closed)
+
+    def test_list_serializes_snoozed_completed_and_archived_state(self):
+        item_id = UUID("11111111-1111-1111-1111-111111111111")
+        source_id = UUID("22222222-2222-2222-2222-222222222222")
+        timestamp = datetime(2026, 10, 19, 13, 0, tzinfo=timezone.utc)
+        cursor = FakeCursor(
+            fetchall_result=[
+                (item_id, source_id, "snoozed", "Snoozed", "https://example.com/snoozed", None, None, timestamp, timestamp, timestamp, "active", datetime(2026, 10, 20, 13, 0, tzinfo=timezone.utc), None),
+                (item_id, source_id, "completed", "Completed", "https://example.com/completed", None, None, timestamp, timestamp, timestamp, "completed", None, timestamp),
+                (item_id, source_id, "archived", "Archived", "https://example.com/archived", None, None, timestamp, timestamp, timestamp, "archived", None, None),
+            ]
+        )
+        connection = FakeConnection(cursor)
+
+        with patch.object(repository, "connect", return_value=connection):
+            result = ContentItemRepository().list_for_user("user-a")
+
+        self.assertEqual(result[0]["status"], "active")
+        self.assertEqual(result[0]["snoozed_until"], "2026-10-20T13:00:00+00:00")
+        self.assertEqual(result[1]["status"], "completed")
+        self.assertEqual(result[1]["completed_at"], "2026-10-19T13:00:00+00:00")
+        self.assertEqual(result[2]["status"], "archived")
+
+    def test_list_join_uses_authenticated_user_state_only(self):
+        cursor = FakeCursor()
+        connection = FakeConnection(cursor)
+
+        with patch.object(repository, "connect", return_value=connection):
+            ContentItemRepository().list_for_user("user-b")
+
+        _, params = cursor.executions[0]
+        self.assertEqual(params, ("user-b", "user-b"))
 
 
 if __name__ == "__main__":

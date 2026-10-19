@@ -13,6 +13,8 @@ type ContentItemsState =
   | { status: "ready"; items: ContentItem[] }
   | { status: "error" };
 
+type ContentItemFilter = "all" | "snoozed" | "completed" | "archived";
+
 function formatTimestamp(timestamp: string): string {
   return new Intl.DateTimeFormat(undefined, {
     month: "short",
@@ -30,24 +32,25 @@ function summaryAsPlainText(summary: string | null): string | null {
   return normalized || null;
 }
 
-function newestDiscoveredFirst(items: ContentItem[]): ContentItem[] {
-  return [...items].sort((left, right) => {
-    const discoveredAtDifference =
-      new Date(right.discovered_at).getTime() - new Date(left.discovered_at).getTime();
+function isCurrentlySnoozed(item: ContentItem, now: Date): boolean {
+  return item.status === "active" && item.snoozed_until !== null && new Date(item.snoozed_until) > now;
+}
 
-    if (discoveredAtDifference !== 0) {
-      return discoveredAtDifference;
-    }
+function filterItems(items: ContentItem[], filter: ContentItemFilter, now: Date): ContentItem[] {
+  if (filter === "all") {
+    return items;
+  }
 
-    const createdAtDifference =
-      new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+  return items.filter((item) => filter === "snoozed" ? isCurrentlySnoozed(item, now) : item.status === filter);
+}
 
-    if (createdAtDifference !== 0) {
-      return createdAtDifference;
-    }
-
-    return left.id.localeCompare(right.id);
-  });
+function emptyMessage(filter: ContentItemFilter): string {
+  switch (filter) {
+    case "snoozed": return "No snoozed items.";
+    case "completed": return "No completed items yet.";
+    case "archived": return "No archived items.";
+    default: return "";
+  }
 }
 
 export default function ContentItemsPage() {
@@ -65,7 +68,7 @@ export default function ContentItemsPage() {
         const response = await listContentItems();
 
         if (active) {
-          setState({ status: "ready", items: newestDiscoveredFirst(response.content_items) });
+          setState({ status: "ready", items: response.content_items });
         }
       } catch (caught) {
         if (!active) {
@@ -134,11 +137,27 @@ export default function ContentItemsPage() {
           </div>
         ) : null}
 
-        {state.status === "ready" ? (
-          <section className="content-items-section" aria-label="Content Items list">
+        {state.status === "ready" ? (() => {
+          const visibleItems = filterItems(state.items, filter, new Date());
+
+          return <section className="content-items-section" aria-label="Content Items list">
             <div className="section-heading">
               <h2>Recently discovered</h2>
               <p>{state.items.length} total</p>
+            </div>
+
+            <div className="content-item-filters" aria-label="Filter content items">
+              {(["all", "snoozed", "completed", "archived"] as const).map((option) => (
+                <button
+                  aria-pressed={filter === option}
+                  className={`filter-button${filter === option ? " selected" : ""}`}
+                  key={option}
+                  onClick={() => setFilter(option)}
+                  type="button"
+                >
+                  {option.charAt(0).toUpperCase() + option.slice(1)}
+                </button>
+              ))}
             </div>
 
             {state.items.length === 0 ? (
@@ -149,15 +168,19 @@ export default function ContentItemsPage() {
                   View Content Sources
                 </Link>
               </div>
+            ) : visibleItems.length === 0 ? (
+              <div className="empty-state">
+                <p>{emptyMessage(filter)}</p>
+              </div>
             ) : (
               <ul className="content-items-list">
-                {state.items.map((item) => (
+                {visibleItems.map((item) => (
                   <ContentItemCard item={item} key={item.id} />
                 ))}
               </ul>
             )}
-          </section>
-        ) : null}
+          </section>;
+        })() : null}
       </section>
     </main>
   );
@@ -165,6 +188,15 @@ export default function ContentItemsPage() {
 
 function ContentItemCard({ item }: { item: ContentItem }) {
   const summary = summaryAsPlainText(item.summary);
+  const stateLabel = isCurrentlySnoozed(item, new Date())
+    ? `Snoozed until ${formatTimestamp(item.snoozed_until!)}`
+    : item.status === "completed" && item.completed_at
+      ? `Completed ${formatTimestamp(item.completed_at)}`
+      : item.status === "completed"
+        ? "Completed"
+        : item.status === "archived"
+          ? "Archived"
+          : null;
 
   return (
     <li className="content-item">
@@ -177,6 +209,7 @@ function ContentItemCard({ item }: { item: ContentItem }) {
       <div className="content-item-meta">
         {item.published_at ? <span>Published {formatTimestamp(item.published_at)}</span> : null}
         <span>Discovered {formatTimestamp(item.discovered_at)}</span>
+        {stateLabel ? <span className={`content-item-state state-${item.status}`}>{stateLabel}</span> : null}
       </div>
       <a className="content-item-link" href={item.url} target="_blank" rel="noopener noreferrer">
         Open article

@@ -13,6 +13,9 @@ export type ContentItem = {
   discovered_at: string;
   created_at: string;
   updated_at: string;
+  status: "active" | "completed" | "archived";
+  snoozed_until: string | null;
+  completed_at: string | null;
 };
 
 export type ContentItemListResponse = {

@@ -100,13 +100,21 @@ Success response: `200 OK`
       "published_at": "2026-09-15T12:00:00+00:00",
       "discovered_at": "2026-09-15T13:00:00+00:00",
       "created_at": "2026-09-15T13:00:01+00:00",
-      "updated_at": "2026-09-15T13:00:01+00:00"
+      "updated_at": "2026-09-15T13:00:01+00:00",
+      "status": "active",
+      "snoozed_until": null,
+      "completed_at": null
     }
   ]
 }
 ```
 
-`summary` and `published_at` may be `null`. An authenticated user with no
+`summary` and `published_at` may be `null`. `status` is `active`, `completed`,
+or `archived`; `snoozed_until` and `completed_at` may be `null`. Items without
+a Content Item User State row are returned as `active` with both timestamps
+`null`. An item is currently snoozed when its status is `active` and its
+`snoozed_until` is in the future. The endpoint exposes only current
+disposition, not User Action Event history. An authenticated user with no
 Content Items receives `{ "content_items": [] }` with `200 OK`. Internal
 failures return a generic `500 Internal Server Error` response.
 
