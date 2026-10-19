@@ -57,6 +57,7 @@ export default function ContentItemsPage() {
   const router = useRouter();
   const [state, setState] = useState<ContentItemsState>({ status: "loading" });
   const [reloadKey, setReloadKey] = useState(0);
+  const [filter, setFilter] = useState<ContentItemFilter>("all");
 
   useEffect(() => {
     let active = true;
