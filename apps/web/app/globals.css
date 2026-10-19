@@ -343,6 +343,30 @@ dd {
   margin-top: 32px;
 }
 
+.content-item-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #bbc4d4;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4d5a70;
+  cursor: pointer;
+}
+
+.filter-button.selected {
+  border-color: #185abc;
+  background: #e7f0ff;
+  color: #185abc;
+  font-weight: 700;
+}
+
 .content-items-list {
   display: grid;
   gap: 14px;
@@ -383,6 +407,18 @@ dd {
   margin-top: 14px;
   color: #5d6980;
   font-size: 0.85rem;
+}
+
+.content-item-state {
+  font-weight: 700;
+}
+
+.content-item-state.state-completed {
+  color: #137333;
+}
+
+.content-item-state.state-archived {
+  color: #4d5a70;
 }
 
 .content-item-link {

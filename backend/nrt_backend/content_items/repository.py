@@ -49,19 +49,25 @@ SELECT
 
 LIST_CONTENT_ITEMS_SQL = """
 SELECT
-    id,
-    content_source_id,
-    external_id,
-    title,
-    url,
-    summary,
-    published_at,
-    discovered_at,
-    created_at,
-    updated_at
+    content_items.id,
+    content_items.content_source_id,
+    content_items.external_id,
+    content_items.title,
+    content_items.url,
+    content_items.summary,
+    content_items.published_at,
+    content_items.discovered_at,
+    content_items.created_at,
+    content_items.updated_at,
+    COALESCE(content_item_user_state.status, 'active'),
+    content_item_user_state.snoozed_until,
+    content_item_user_state.completed_at
 FROM content_items
-WHERE user_id = %s
-ORDER BY discovered_at DESC, created_at DESC, id DESC;
+LEFT JOIN content_item_user_state
+  ON content_item_user_state.content_item_id = content_items.id
+ AND content_item_user_state.user_id = %s
+WHERE content_items.user_id = %s
+ORDER BY content_items.discovered_at DESC, content_items.created_at DESC, content_items.id DESC;
 """
 
 
@@ -128,7 +134,7 @@ class ContentItemRepository:
 
         try:
             with connection.cursor() as cursor:
-                cursor.execute(LIST_CONTENT_ITEMS_SQL, (user_id,))
+                cursor.execute(LIST_CONTENT_ITEMS_SQL, (user_id, user_id))
                 rows = cursor.fetchall()
             return [_content_item_from_row(row) for row in rows]
         finally:
@@ -147,6 +153,9 @@ def _content_item_from_row(row):
         discovered_at,
         created_at,
         updated_at,
+        status,
+        snoozed_until,
+        completed_at,
     ) = row
 
     return {
@@ -160,6 +169,9 @@ def _content_item_from_row(row):
         "discovered_at": _datetime_value(discovered_at),
         "created_at": _datetime_value(created_at),
         "updated_at": _datetime_value(updated_at),
+        "status": status,
+        "snoozed_until": _datetime_value(snoozed_until),
+        "completed_at": _datetime_value(completed_at),
     }
 
 
