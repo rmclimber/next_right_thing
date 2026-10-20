@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { getCurrentUser, signOut } from "aws-amplify/auth";
 
 import { configureAmplify } from "@/lib/amplify-client";
+import { AuthenticatedNavigation } from "@/components/authenticated-navigation";
 import { ContentItem, listContentItems } from "@/lib/content-items-api";
 
 type ContentItemsState =
@@ -111,20 +112,7 @@ export default function ContentItemsPage() {
             <p className="eyebrow">Next Right Thing</p>
             <h1>Content Items</h1>
           </div>
-          <div className="header-actions">
-            <Link className="button primary" href="/recommendations">
-              Next Right Thing
-            </Link>
-            <Link className="button" href="/dashboard">
-              Goals
-            </Link>
-            <Link className="button" href="/content-sources">
-              Content Sources
-            </Link>
-            <button className="button" type="button" onClick={handleSignOut}>
-              Sign Out
-            </button>
-          </div>
+          <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>
 
         {state.status === "loading" ? <p>Loading Content Items...</p> : null}

@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { getCurrentUser, signOut } from "aws-amplify/auth";
 
 import { configureAmplify } from "@/lib/amplify-client";
+import { AuthenticatedNavigation } from "@/components/authenticated-navigation";
 import {
   createGoal,
   Goal,
@@ -248,20 +248,7 @@ export default function Dashboard() {
             <p className="eyebrow">Next Right Thing</p>
             <h1>Goals</h1>
           </div>
-          <div className="header-actions">
-            <Link className="button primary" href="/recommendations">
-              Next Right Thing
-            </Link>
-            <Link className="button" href="/content-sources">
-              Content Sources
-            </Link>
-            <Link className="button" href="/content-items">
-              Content Items
-            </Link>
-            <button className="button" type="button" onClick={handleSignOut}>
-              Sign Out
-            </button>
-          </div>
+          <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>
 
         {state.status === "loading" ? <p>Loading Goals...</p> : null}
