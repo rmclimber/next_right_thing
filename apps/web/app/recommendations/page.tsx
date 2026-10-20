@@ -7,6 +7,7 @@ import { getCurrentUser, signOut } from "aws-amplify/auth";
 
 import { configureAmplify } from "@/lib/amplify-client";
 import { applyContentItemAction, ContentItemAction, getNextRecommendation, Recommendation } from "@/lib/recommendations-api";
+import { AuthenticatedNavigation } from "@/components/authenticated-navigation";
 
 const presetDurations = [5, 15, 30, 60];
 
@@ -132,12 +133,7 @@ export default function RecommendationsPage() {
             <p className="eyebrow">Next Right Thing</p>
             <h1>What should you do next?</h1>
           </div>
-          <div className="header-actions">
-            <Link className="button" href="/dashboard">Goals</Link>
-            <Link className="button" href="/content-sources">Content Sources</Link>
-            <Link className="button" href="/content-items">Content Items</Link>
-            <button className="button" type="button" onClick={handleSignOut}>Sign Out</button>
-          </div>
+          <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>
 
         {isAuthenticated ? (
