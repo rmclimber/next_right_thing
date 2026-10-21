@@ -23,20 +23,28 @@ class RssFetchHandlerTests(unittest.TestCase):
     def test_rss_entry_normalizes_with_guid_and_publication_time(self):
         entries = [{"id": "rss-guid", "title": "Example", "link": "https://example.com/post", "summary": "Summary", "published_parsed": (2026, 9, 15, 12, 0, 0)}]
         sqs = Mock()
-        with patch.object(rss_handler, "_feed_entries", return_value=entries), patch.object(rss_handler, "_sqs_client", return_value=sqs), patch.object(rss_handler, "_utc_now", return_value="2026-09-16T12:34:56Z"):
+        with patch.object(rss_handler, "_feed_entries", return_value=entries), patch.object(rss_handler, "_record_health") as record_health, patch.object(rss_handler, "_sqs_client", return_value=sqs), patch.object(rss_handler, "_utc_now", return_value="2026-09-16T12:34:56Z"):
             response = rss_handler.handler({"Records": [record(JOB)]}, None)
         self.assertEqual(response, {"batchItemFailures": []})
+        record_health.assert_called_once_with(JOB, "healthy", None)
         self.assertEqual(json.loads(sqs.send_message.call_args.kwargs["MessageBody"]), {"user_id": "user-id", "content_source_id": "source-id", "external_id": "rss-guid", "title": "Example", "url": "https://example.com/post", "summary": "Summary", "published_at": "2026-09-15T12:00:00Z", "discovered_at": "2026-09-16T12:34:56Z"})
 
     def test_atom_entry_uses_atom_id_and_allows_missing_summary_and_timestamp(self):
         entries = [{"id": "atom-id", "title": "Atom example", "link": "https://example.com/atom"}]
         sqs = Mock()
-        with patch.object(rss_handler, "_feed_entries", return_value=entries), patch.object(rss_handler, "_sqs_client", return_value=sqs), patch.object(rss_handler, "_utc_now", return_value="2026-09-16T12:34:56Z"):
+        with patch.object(rss_handler, "_feed_entries", return_value=entries), patch.object(rss_handler, "_record_health") as record_health, patch.object(rss_handler, "_sqs_client", return_value=sqs), patch.object(rss_handler, "_utc_now", return_value="2026-09-16T12:34:56Z"):
             rss_handler.handler({"Records": [record(JOB)]}, None)
         body = json.loads(sqs.send_message.call_args.kwargs["MessageBody"])
         self.assertEqual(body["external_id"], "atom-id")
         self.assertIsNone(body["summary"])
         self.assertIsNone(body["published_at"])
+        record_health.assert_called_once_with(JOB, "healthy", None)
+
+    def test_valid_zero_entry_feed_is_healthy(self):
+        with patch.object(rss_handler, "_feed_entries", return_value=[]), patch.object(rss_handler, "_record_health") as record_health:
+            response = rss_handler.handler({"Records": [record(JOB)]}, None)
+        self.assertEqual(response, {"batchItemFailures": []})
+        record_health.assert_called_once_with(JOB, "healthy", None)
 
     def test_url_is_external_id_fallback_and_invalid_entries_are_skipped(self):
         entries = [
@@ -55,18 +63,48 @@ class RssFetchHandlerTests(unittest.TestCase):
         self.assertEqual(response, {"batchItemFailures": []})
 
     def test_timeout_and_retryable_http_status_are_retried(self):
-        with patch.object(rss_handler, "_feed_entries", side_effect=rss_handler.RetryableFetchError("timeout")):
+        with patch.object(rss_handler, "_feed_entries", side_effect=rss_handler.RetryableFetchError("timeout")), patch.object(rss_handler, "_record_health") as record_health:
             response = rss_handler.handler({"Records": [record(JOB)]}, None)
         self.assertEqual(response, {"batchItemFailures": [{"itemIdentifier": "message-1"}]})
+        record_health.assert_called_once_with(JOB, "fetch_error", "timeout")
 
         with patch.object(rss_handler, "urlopen", side_effect=HTTPError(JOB["url"], 503, "service unavailable", {}, None)):
             with self.assertRaises(rss_handler.RetryableFetchError):
                 rss_handler._feed_entries(JOB["url"])
 
     def test_permanent_http_4xx_is_acknowledged(self):
-        with patch.object(rss_handler, "_feed_entries", side_effect=rss_handler.PermanentFeedError("HTTP 404")):
+        with patch.object(rss_handler, "_feed_entries", side_effect=rss_handler.PermanentFeedError("HTTP 404")), patch.object(rss_handler, "_record_health") as record_health:
             response = rss_handler.handler({"Records": [record(JOB)]}, None)
         self.assertEqual(response, {"batchItemFailures": []})
+        record_health.assert_called_once_with(JOB, "fetch_error", "HTTP 404")
+
+    def test_invalid_document_is_acknowledged_and_recorded(self):
+        with patch.object(rss_handler, "_feed_entries", side_effect=rss_handler.PermanentFeedError("invalid RSS/Atom document")), patch.object(rss_handler, "_record_health") as record_health:
+            response = rss_handler.handler({"Records": [record(JOB)]}, None)
+        self.assertEqual(response, {"batchItemFailures": []})
+        record_health.assert_called_once_with(JOB, "invalid_feed", "invalid RSS/Atom document")
+
+    def test_feed_parser_rejects_document_without_rss_or_atom_version(self):
+        parsed = Mock(version="", bozo=False, entries=[])
+        feedparser = Mock()
+        feedparser.parse.return_value = parsed
+        response = Mock()
+        response.read.return_value = b"not a feed"
+        response.__enter__ = Mock(return_value=response)
+        response.__exit__ = Mock(return_value=False)
+
+        with patch.object(rss_handler, "urlopen", return_value=response), patch.object(rss_handler, "import_module", return_value=feedparser):
+            with self.assertRaisesRegex(rss_handler.PermanentFeedError, "invalid RSS/Atom document"):
+                rss_handler._feed_entries(JOB["url"])
+
+    def test_health_update_failure_does_not_republish_or_retry_a_successful_feed(self):
+        sqs = Mock()
+        entries = [{"id": "id", "title": "Entry", "link": "https://example.com/entry"}]
+        with patch.object(rss_handler, "_feed_entries", return_value=entries), patch.object(rss_handler, "_record_health") as record_health, patch.object(rss_handler, "_sqs_client", return_value=sqs):
+            record_health.side_effect = None
+            response = rss_handler.handler({"Records": [record(JOB)]}, None)
+        self.assertEqual(response, {"batchItemFailures": []})
+        self.assertEqual(sqs.send_message.call_count, 1)
 
     def test_only_failed_sqs_record_is_retried(self):
         sqs = Mock()

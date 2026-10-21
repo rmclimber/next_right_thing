@@ -88,6 +88,13 @@ Examples:
 
 For the initial implementation, RSS is the only supported source type.
 
+Content Source lifecycle status (`active`, `paused`, or `archived`) controls
+whether NRT dispatches the source. RSS fetch health is separate operational
+metadata from the most recent attempt: a source can be paused and still show
+that its most recent fetch was healthy. Health records the latest attempt, the
+latest successful fetch, and a restrained diagnostic for an invalid feed or
+fetch failure. A source with no attempt has never been checked.
+
 ### Content Item
 
 A Content Item is a piece of content discovered from a Content Source and

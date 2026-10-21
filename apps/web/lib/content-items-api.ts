@@ -16,6 +16,11 @@ export type ContentItem = {
   status: "active" | "completed" | "archived";
   snoozed_until: string | null;
   completed_at: string | null;
+  content_source: {
+    id: string;
+    name: string;
+    url: string;
+  };
 };
 
 export type ContentItemListResponse = {

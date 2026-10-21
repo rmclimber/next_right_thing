@@ -72,6 +72,10 @@ class ContentSourceRepositoryTests(unittest.TestCase):
                 "active",
                 created_at,
                 created_at,
+                None,
+                None,
+                None,
+                None,
             ),
         )
         connection = FakeConnection(cursor)
@@ -168,6 +172,10 @@ class ContentSourceRepositoryTests(unittest.TestCase):
                 "paused",
                 datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc),
                 updated_at,
+                "fetch_error",
+                updated_at,
+                datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc),
+                "HTTP 404",
             ),
         )
         connection = FakeConnection(cursor)
@@ -194,6 +202,8 @@ class ContentSourceRepositoryTests(unittest.TestCase):
         self.assertEqual(params[2].tzinfo, timezone.utc)
         self.assertEqual(params[-2:], ("source-id", "cognito-user-sub"))
         self.assertEqual(result["status"], "paused")
+        self.assertEqual(result["last_fetch_status"], "fetch_error")
+        self.assertEqual(result["last_fetch_error"], "HTTP 404")
         self.assertTrue(connection.committed)
         self.assertTrue(connection.closed)
 

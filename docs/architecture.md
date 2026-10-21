@@ -122,12 +122,12 @@ Source Dispatch Lambda (non-VPC)
 rss-fetch-jobs SQS
     ↓
 RSS Fetch Lambda (outside the VPC)
-    ↓
-normalized-content-items SQS
-    ↓
-Content Item Writer Lambda (VPC-attached)
-    ↓
-Aurora Content Items
+    ├── RDS Data API → Aurora Content Sources (source-health update)
+    └── normalized-content-items SQS
+          ↓
+    Content Item Writer Lambda (VPC-attached)
+          ↓
+    Aurora Content Items
 ```
 
 Source Dispatch is a targeted non-VPC exception: it uses the RDS Data API for
@@ -135,7 +135,10 @@ its simple active-RSS-source read, then sends fetch jobs to SQS through
 AWS-managed networking. The Content Item Writer remains VPC-attached and uses
 psycopg with the Aurora endpoint and Secrets Manager credentials. The RSS Fetch
 Lambda has no VPC configuration or database access, so it can reach public
-feeds without a NAT Gateway. The normalized message contract is documented in
+feeds without a NAT Gateway. RSS Fetch additionally uses the RDS Data API for
+one lightweight, ownership-scoped Content Source health update after each
+fetch/parse outcome; application APIs and Writer database access remain psycopg
+over the VPC. The normalized message contract is documented in
 `docs/content-item-ingestion.md`.
 
 ---

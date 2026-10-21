@@ -122,6 +122,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
                 (
                     item_id, source_id, "feed-guid", "Example title", "https://example.com/post",
                     None, None, discovered_at, discovered_at, discovered_at,
+                    source_id, "Example source", "https://example.com/feed.xml",
                     "active", None, None,
                 )
             ]
@@ -133,6 +134,8 @@ class ContentItemRepositoryTests(unittest.TestCase):
 
         query, params = cursor.executions[0]
         self.assertIn("LEFT JOIN content_item_user_state", query)
+        self.assertIn("JOIN content_sources", query)
+        self.assertIn("content_sources.user_id = content_items.user_id", query)
         self.assertIn("content_item_user_state.user_id = %s", query)
         self.assertIn("WHERE content_items.user_id = %s", query)
         self.assertIn("ORDER BY content_items.discovered_at DESC, content_items.created_at DESC, content_items.id DESC", query)
@@ -140,6 +143,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
         self.assertEqual(params, ("cognito-user-sub", "cognito-user-sub"))
         self.assertEqual(result[0]["id"], str(item_id))
         self.assertEqual(result[0]["content_source_id"], str(source_id))
+        self.assertEqual(result[0]["content_source"], {"id": str(source_id), "name": "Example source", "url": "https://example.com/feed.xml"})
         self.assertIsNone(result[0]["summary"])
         self.assertIsNone(result[0]["published_at"])
         self.assertEqual(result[0]["discovered_at"], "2026-09-15T13:00:00+00:00")
@@ -154,9 +158,9 @@ class ContentItemRepositoryTests(unittest.TestCase):
         timestamp = datetime(2026, 10, 19, 13, 0, tzinfo=timezone.utc)
         cursor = FakeCursor(
             fetchall_result=[
-                (item_id, source_id, "snoozed", "Snoozed", "https://example.com/snoozed", None, None, timestamp, timestamp, timestamp, "active", datetime(2026, 10, 20, 13, 0, tzinfo=timezone.utc), None),
-                (item_id, source_id, "completed", "Completed", "https://example.com/completed", None, None, timestamp, timestamp, timestamp, "completed", None, timestamp),
-                (item_id, source_id, "archived", "Archived", "https://example.com/archived", None, None, timestamp, timestamp, timestamp, "archived", None, None),
+                (item_id, source_id, "snoozed", "Snoozed", "https://example.com/snoozed", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "active", datetime(2026, 10, 20, 13, 0, tzinfo=timezone.utc), None),
+                (item_id, source_id, "completed", "Completed", "https://example.com/completed", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "completed", None, timestamp),
+                (item_id, source_id, "archived", "Archived", "https://example.com/archived", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "archived", None, None),
             ]
         )
         connection = FakeConnection(cursor)

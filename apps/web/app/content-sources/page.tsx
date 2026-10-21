@@ -38,6 +38,22 @@ const statusLabels: Record<ContentSourceStatus, string> = {
   archived: "Archived",
 };
 
+const fetchHealthLabels: Record<NonNullable<ContentSource["last_fetch_status"]>, string> = {
+  healthy: "Healthy",
+  invalid_feed: "Invalid feed",
+  fetch_error: "Fetch error",
+};
+
+function fetchHealthDetail(source: ContentSource): string | null {
+  if (source.last_fetch_status === "healthy" && source.last_fetch_success_at) {
+    return `Last successful fetch: ${new Date(source.last_fetch_success_at).toLocaleDateString()}`;
+  }
+  if (source.last_fetch_status && source.last_fetch_attempt_at) {
+    return `Last attempt: ${new Date(source.last_fetch_attempt_at).toLocaleDateString()}${source.last_fetch_error ? ` · ${source.last_fetch_error}` : ""}`;
+  }
+  return null;
+}
+
 function valuesFromSource(source: ContentSource): ContentSourceFormValues {
   return {
     name: source.name,
@@ -419,6 +435,10 @@ export default function ContentSourcesPage() {
                             <p className="target-date">
                               {sourceTypeLabels[source.source_type]}
                             </p>
+                            <p className={`source-health source-health-${source.last_fetch_status ?? "never_checked"}`}>
+                              {source.last_fetch_status ? fetchHealthLabels[source.last_fetch_status] : "Never checked"}
+                            </p>
+                            {fetchHealthDetail(source) ? <p className="source-health-detail">{fetchHealthDetail(source)}</p> : null}
                           </div>
 
                           <div className="goal-actions">

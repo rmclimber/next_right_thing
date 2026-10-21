@@ -101,6 +101,11 @@ Success response: `200 OK`
       "discovered_at": "2026-09-15T13:00:00+00:00",
       "created_at": "2026-09-15T13:00:01+00:00",
       "updated_at": "2026-09-15T13:00:01+00:00",
+      "content_source": {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "name": "Example feed",
+        "url": "https://example.com/feed.xml"
+      },
       "status": "active",
       "snoozed_until": null,
       "completed_at": null
@@ -109,7 +114,8 @@ Success response: `200 OK`
 }
 ```
 
-`summary` and `published_at` may be `null`. `status` is `active`, `completed`,
+`summary` and `published_at` may be `null`. `content_source` is the owned source
+that produced the item and never exposes its owner. `status` is `active`, `completed`,
 or `archived`; `snoozed_until` and `completed_at` may be `null`. Items without
 a Content Item User State row are returned as `active` with both timestamps
 `null`. An item is currently snoozed when its status is `active` and its
@@ -261,7 +267,11 @@ Success response: `201 Created`
   "url": "https://example.com/feed.xml",
   "status": "active",
   "created_at": "2026-09-01T12:00:00+00:00",
-  "updated_at": "2026-09-01T12:00:00+00:00"
+  "updated_at": "2026-09-01T12:00:00+00:00",
+  "last_fetch_status": null,
+  "last_fetch_attempt_at": null,
+  "last_fetch_success_at": null,
+  "last_fetch_error": null
 }
 ```
 
@@ -291,7 +301,11 @@ Success response: `200 OK`
       "url": "https://example.com/feed.xml",
       "status": "active",
       "created_at": "2026-09-01T12:00:00+00:00",
-      "updated_at": "2026-09-01T12:00:00+00:00"
+      "updated_at": "2026-09-01T12:00:00+00:00",
+      "last_fetch_status": null,
+      "last_fetch_attempt_at": null,
+      "last_fetch_success_at": null,
+      "last_fetch_error": null
     }
   ]
 }
@@ -305,7 +319,9 @@ An authenticated user with no Content Sources receives:
 }
 ```
 
-Internal failures return a generic `500 Internal Server Error` response.
+`last_fetch_status` is `healthy`, `invalid_feed`, `fetch_error`, or `null` when
+the source has never been checked. Fetch health is separate from source
+lifecycle status. Internal failures return a generic `500 Internal Server Error` response.
 
 ## PATCH /content-sources/{id}
 
@@ -351,7 +367,11 @@ Success response: `200 OK`
   "url": "https://example.com/feed.xml",
   "status": "paused",
   "created_at": "2026-09-01T12:00:00+00:00",
-  "updated_at": "2026-09-01T12:30:00+00:00"
+  "updated_at": "2026-09-01T12:30:00+00:00",
+  "last_fetch_status": "healthy",
+  "last_fetch_attempt_at": "2026-09-01T12:25:00+00:00",
+  "last_fetch_success_at": "2026-09-01T12:25:00+00:00",
+  "last_fetch_error": null
 }
 ```
 

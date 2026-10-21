@@ -428,6 +428,19 @@ dd {
   color: #185abc;
 }
 
+.content-item-source {
+  display: inline-block;
+  margin-top: 6px;
+  color: #5d6980;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.content-item-source:hover {
+  color: #185abc;
+  text-decoration: underline;
+}
+
 .content-item-summary {
   margin: 12px 0 0;
   color: #4d5a70;

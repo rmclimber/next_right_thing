@@ -42,3 +42,37 @@ to publish normalized items are retried per SQS record. Repeated feed entries
 are expected on every poll: Writer uniqueness on `(content_source_id,
 external_id)` is the idempotency boundary. No feed-state, ETag, or conditional
 fetch optimization exists yet.
+
+## Source health
+
+RSS Fetch records lightweight operational health on the owned Content Source
+through the Aurora RDS Data API. It updates by both `content_source_id` and
+`user_id`; a missing source is logged and is never recreated. This is a targeted
+non-VPC database operation, like Source Dispatch's source discovery. The
+application APIs and Content Item Writer continue to use psycopg through the
+VPC.
+
+`healthy` means an HTTP fetch and usable RSS/Atom parse succeeded, including a
+valid feed with zero entries. `invalid_feed` means the HTTP request succeeded
+but the body could not be parsed as RSS/Atom. `fetch_error` covers network,
+timeout, and HTTP failures. Each result records an attempt time; only `healthy`
+updates the latest-success time, and it clears the previous error.
+
+Health persistence is secondary telemetry. A Data API failure is logged as an
+operational error but does not change SQS acknowledgement or retry semantics:
+it cannot cause already-published normalized items to be re-published, and it
+does not turn a permanent 4xx feed response into a retry.
+
+## Manual health refresh
+
+After deployment, an operator can manually invoke Source Dispatch from their
+normal PowerShell session, replacing `dev` with the deployed environment:
+
+```powershell
+aws lambda invoke --function-name nrt-dev-source-dispatch --cli-binary-format raw-in-base64-out --payload '{}' source-dispatch-response.json
+Get-Content -Raw .\source-dispatch-response.json
+```
+
+This emits one fetch job for each active RSS Content Source. The RSS Fetch
+Lambda then updates its health on the next queue delivery; the response file
+should show a successful dispatch result.

@@ -194,6 +194,9 @@ function ContentItemCard({ item }: { item: ContentItem }) {
           {item.title}
         </a>
       </h3>
+      <a className="content-item-source" href={item.content_source.url} target="_blank" rel="noopener noreferrer">
+        {item.content_source.name}
+      </a>
       {summary ? <p className="content-item-summary">{summary}</p> : null}
       <div className="content-item-meta">
         {item.published_at ? <span>Published {formatTimestamp(item.published_at)}</span> : null}
