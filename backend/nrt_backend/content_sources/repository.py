@@ -27,12 +27,14 @@ INSERT INTO content_sources (
     %s,
     %s
 )
-RETURNING id, name, source_type, url, status, created_at, updated_at;
+RETURNING id, name, source_type, url, status, created_at, updated_at,
+    last_fetch_status, last_fetch_attempt_at, last_fetch_success_at, last_fetch_error;
 """
 
 
 LIST_CONTENT_SOURCES_SQL = """
-SELECT id, name, source_type, url, status, created_at, updated_at
+SELECT id, name, source_type, url, status, created_at, updated_at,
+    last_fetch_status, last_fetch_attempt_at, last_fetch_success_at, last_fetch_error
 FROM content_sources
 WHERE user_id = %s
 ORDER BY created_at DESC, id DESC;
@@ -148,7 +150,8 @@ UPDATE content_sources
 SET {", ".join(assignments)}
 WHERE id = %s
 AND user_id = %s
-RETURNING id, name, source_type, url, status, created_at, updated_at;
+RETURNING id, name, source_type, url, status, created_at, updated_at,
+    last_fetch_status, last_fetch_attempt_at, last_fetch_success_at, last_fetch_error;
 """
         connection = connect()
 
@@ -191,6 +194,10 @@ def _content_source_from_row(row):
         status,
         created_at,
         updated_at,
+        last_fetch_status,
+        last_fetch_attempt_at,
+        last_fetch_success_at,
+        last_fetch_error,
     ) = row
 
     return {
@@ -201,6 +208,10 @@ def _content_source_from_row(row):
         "status": status,
         "created_at": _datetime_value(created_at),
         "updated_at": _datetime_value(updated_at),
+        "last_fetch_status": last_fetch_status,
+        "last_fetch_attempt_at": _datetime_value(last_fetch_attempt_at),
+        "last_fetch_success_at": _datetime_value(last_fetch_success_at),
+        "last_fetch_error": last_fetch_error,
     }
 
 

@@ -9,6 +9,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from nrt_backend.lambdas.rss_fetch.source_health import DataApiContentSourceHealthRepository
+
 
 logger = logging.getLogger(__name__)
 FETCH_TIMEOUT_SECONDS = 15
@@ -34,6 +36,7 @@ def handler(event, context):
         try:
             job = _job_from_record(record)
             entries = _feed_entries(job["url"])
+            _record_health(job, "healthy", None)
             discovered_at = _utc_now()
             items, skipped = _normalized_items(job, entries, discovered_at)
             _send_items(items)
@@ -42,8 +45,12 @@ def handler(event, context):
                 job["content_source_id"], len(entries), len(items), skipped,
             )
         except (PermanentJobError, PermanentFeedError) as error:
+            if not isinstance(error, PermanentJobError):
+                _record_health(job, "invalid_feed" if str(error) == "invalid RSS/Atom document" else "fetch_error", str(error))
             logger.warning("RSS fetch acknowledged: message_id=%s category=permanent error=%s", message_id, error)
-        except Exception:
+        except Exception as error:
+            if isinstance(error, RetryableFetchError):
+                _record_health(job, "fetch_error", str(error))
             logger.exception("RSS fetch failed: message_id=%s category=retryable", message_id)
             failures.append({"itemIdentifier": message_id})
     return {"batchItemFailures": failures}
@@ -76,8 +83,10 @@ def _feed_entries(url):
         raise RetryableFetchError("network failure") from error
 
     parsed = import_module("feedparser").parse(body)
-    if getattr(parsed, "bozo", False) and not getattr(parsed, "entries", None):
-        raise PermanentFeedError("feed could not be parsed")
+    if not getattr(parsed, "version", None) or (
+        getattr(parsed, "bozo", False) and not getattr(parsed, "entries", None)
+    ):
+        raise PermanentFeedError("invalid RSS/Atom document")
     return parsed.entries
 
 
@@ -141,6 +150,25 @@ def _send_items(items):
     client = _sqs_client()
     for item in items:
         client.send_message(QueueUrl=queue_url, MessageBody=json.dumps(item))
+
+
+def _record_health(job, status, error):
+    """Telemetry is secondary: a write failure must not alter SQS acknowledgement semantics."""
+    try:
+        updated = DataApiContentSourceHealthRepository().record(
+            user_id=job["user_id"],
+            content_source_id=job["content_source_id"],
+            status=status,
+            error=_bounded_error(error),
+        )
+        if not updated:
+            logger.warning("RSS source health update skipped: content_source_id=%s", job["content_source_id"])
+    except Exception:
+        logger.exception("RSS source health update failed: content_source_id=%s", job["content_source_id"])
+
+
+def _bounded_error(error):
+    return error[:500] if error else None
 
 
 def _entry_string(entry, field):

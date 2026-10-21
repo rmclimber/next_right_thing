@@ -37,6 +37,10 @@ def content_source_response(**overrides):
         "status": "active",
         "created_at": "2026-09-01T12:00:00+00:00",
         "updated_at": "2026-09-01T12:00:00+00:00",
+        "last_fetch_status": None,
+        "last_fetch_attempt_at": None,
+        "last_fetch_success_at": None,
+        "last_fetch_error": None,
     }
     response.update(overrides)
     return response
@@ -168,6 +172,7 @@ class ContentSourcesHandlerTests(unittest.TestCase):
 
         self.assertEqual(response["statusCode"], 200)
         self.assertEqual(json.loads(response["body"])["content_sources"][0]["id"], "source-id")
+        self.assertIsNone(json.loads(response["body"])["content_sources"][0]["last_fetch_status"])
         repository.list_for_user.assert_called_once_with("cognito-user-sub")
 
     def test_get_empty_collection_succeeds(self):

@@ -5,6 +5,7 @@ import { authenticatedRequest } from "./authenticated-api";
 export type ContentSourceType = "rss";
 
 export type ContentSourceStatus = "active" | "paused" | "archived";
+export type ContentSourceFetchStatus = "healthy" | "invalid_feed" | "fetch_error";
 
 export type ContentSource = {
   id: string;
@@ -14,6 +15,10 @@ export type ContentSource = {
   status: ContentSourceStatus;
   created_at: string;
   updated_at: string;
+  last_fetch_status: ContentSourceFetchStatus | null;
+  last_fetch_attempt_at: string | null;
+  last_fetch_success_at: string | null;
+  last_fetch_error: string | null;
 };
 
 export type ContentSourceListResponse = {

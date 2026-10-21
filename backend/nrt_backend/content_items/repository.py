@@ -59,10 +59,16 @@ SELECT
     content_items.discovered_at,
     content_items.created_at,
     content_items.updated_at,
+    content_sources.id,
+    content_sources.name,
+    content_sources.url,
     COALESCE(content_item_user_state.status, 'active'),
     content_item_user_state.snoozed_until,
     content_item_user_state.completed_at
 FROM content_items
+JOIN content_sources
+  ON content_sources.id = content_items.content_source_id
+ AND content_sources.user_id = content_items.user_id
 LEFT JOIN content_item_user_state
   ON content_item_user_state.content_item_id = content_items.id
  AND content_item_user_state.user_id = %s
@@ -153,6 +159,9 @@ def _content_item_from_row(row):
         discovered_at,
         created_at,
         updated_at,
+        source_id,
+        source_name,
+        source_url,
         status,
         snoozed_until,
         completed_at,
@@ -169,6 +178,11 @@ def _content_item_from_row(row):
         "discovered_at": _datetime_value(discovered_at),
         "created_at": _datetime_value(created_at),
         "updated_at": _datetime_value(updated_at),
+        "content_source": {
+            "id": _uuid_value(source_id),
+            "name": source_name,
+            "url": source_url,
+        },
         "status": status,
         "snoozed_until": _datetime_value(snoozed_until),
         "completed_at": _datetime_value(completed_at),

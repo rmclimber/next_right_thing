@@ -191,6 +191,16 @@ Resources:
               - Effect: Allow
                 Action: sqs:SendMessage
                 Resource: !GetAtt NormalizedContentItemsQueue.Arn
+        - PolicyName: SourceHealthDataApiWrite
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: rds-data:ExecuteStatement
+                Resource: !Ref DatabaseClusterArn
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
 
   RssFetchFunction:
     Type: AWS::Lambda::Function
@@ -203,6 +213,9 @@ Resources:
       Environment:
         Variables:
           NORMALIZED_CONTENT_ITEMS_QUEUE_URL: !Ref NormalizedContentItemsQueue
+          DATABASE_CLUSTER_ARN: !Ref DatabaseClusterArn
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
+          DB_NAME: !Ref DatabaseName
       Code:
         S3Bucket: !Ref RssFetchFunctionCodeS3Bucket
         S3Key: !Ref RssFetchFunctionCodeS3Key
