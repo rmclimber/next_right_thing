@@ -30,6 +30,22 @@ class FakeConnection:
 
 
 class RecommendationRepositoryTests(unittest.TestCase):
+    def test_candidate_query_includes_owned_content_source_provenance(self):
+        cursor = FakeCursor(fetchall_result=[(
+            UUID("22222222-2222-2222-2222-222222222222"), "Title", "https://example.com/article", None,
+            None, datetime(2026, 10, 4, tzinfo=timezone.utc), datetime(2026, 10, 4, tzinfo=timezone.utc),
+            UUID("33333333-3333-3333-3333-333333333333"), "Example feed", "https://example.com/feed.xml",
+        )])
+        with patch.object(repository, "connect", return_value=FakeConnection(cursor)):
+            items = RecommendationRepository().list_recent_content_items("user-a")
+
+        self.assertIn("JOIN content_sources", cursor.executions[0][0])
+        self.assertEqual(items[0]["content_source"], {
+            "id": "33333333-3333-3333-3333-333333333333",
+            "name": "Example feed",
+            "url": "https://example.com/feed.xml",
+        })
+
     def test_candidate_query_is_user_scoped_bounded_and_deterministically_ordered(self):
         cursor = FakeCursor()
         with patch.object(repository, "connect", return_value=FakeConnection(cursor)):
@@ -58,6 +74,7 @@ class RecommendationRepositoryTests(unittest.TestCase):
             "id": "22222222-2222-2222-2222-222222222222", "title": "Title", "url": "https://example.com",
             "summary": None, "published_at": None,
             "discovered_at": datetime(2026, 10, 4, tzinfo=timezone.utc), "created_at": datetime(2026, 10, 4, tzinfo=timezone.utc),
+            "content_source": {"id": "source-a", "name": "Example feed", "url": "https://example.com/feed.xml"},
         })
         with patch.object(repository, "connect", return_value=connection):
             result = RecommendationRepository().create_event("user-a", candidate, 20, 0.8, "Reason")

@@ -10,7 +10,8 @@ NOW = datetime(2026, 10, 4, 12, 0, tzinfo=timezone.utc)
 
 def content_item(item_id="item-a"):
     return {"id": item_id, "title": "Bayesian methods", "url": "https://example.com/article", "summary": "Bayesian statistics overview",
-            "published_at": NOW, "discovered_at": NOW, "created_at": NOW}
+            "published_at": NOW, "discovered_at": NOW, "created_at": NOW,
+            "content_source": {"id": "source-a", "name": "Example feed", "url": "https://example.com/feed.xml"}}
 
 
 class RecommendationServiceTests(unittest.TestCase):
@@ -25,6 +26,7 @@ class RecommendationServiceTests(unittest.TestCase):
         self.assertEqual(result["recommendation_event_id"], "event-id")
         self.assertEqual(result["action_type"], "read_content_item")
         self.assertNotIn("user_id", result)
+        self.assertEqual(result["content_item"]["content_source"]["name"], "Example feed")
         self.assertIn("Learn Bayesian statistics", result["reason"])
         repository.create_event.assert_called_once()
         args = repository.create_event.call_args.args

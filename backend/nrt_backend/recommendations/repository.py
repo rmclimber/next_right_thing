@@ -8,8 +8,12 @@ CANDIDATE_POOL_LIMIT = 50
 
 LIST_RECENT_CONTENT_ITEMS_SQL = """
 SELECT content_items.id, content_items.title, content_items.url, content_items.summary,
-       content_items.published_at, content_items.discovered_at, content_items.created_at
+       content_items.published_at, content_items.discovered_at, content_items.created_at,
+       content_sources.id, content_sources.name, content_sources.url
 FROM content_items
+JOIN content_sources
+  ON content_sources.id = content_items.content_source_id
+ AND content_sources.user_id = content_items.user_id
 LEFT JOIN content_item_user_state
   ON content_item_user_state.content_item_id = content_items.id
  AND content_item_user_state.user_id = content_items.user_id
@@ -77,9 +81,10 @@ class RecommendationRepository:
 
 
 def _content_item_from_row(row):
-    item_id, title, url, summary, published_at, discovered_at, created_at = row
+    item_id, title, url, summary, published_at, discovered_at, created_at, source_id, source_name, source_url = row
     return {"id": str(item_id), "title": title, "url": url, "summary": summary,
-            "published_at": published_at, "discovered_at": discovered_at, "created_at": created_at}
+            "published_at": published_at, "discovered_at": discovered_at, "created_at": created_at,
+            "content_source": {"id": str(source_id), "name": source_name, "url": source_url}}
 
 
 def _goal_from_row(row):

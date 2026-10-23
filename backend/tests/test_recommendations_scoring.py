@@ -10,7 +10,8 @@ NOW = datetime(2026, 10, 4, 12, 0, tzinfo=timezone.utc)
 
 def item(item_id="item-a", published_at=NOW, discovered_at=NOW, summary="Learn practical Bayesian statistics"):
     return {"id": item_id, "title": "Bayesian methods", "url": "https://example.com/article", "summary": summary,
-            "published_at": published_at, "discovered_at": discovered_at, "created_at": discovered_at}
+            "published_at": published_at, "discovered_at": discovered_at, "created_at": discovered_at,
+            "content_source": {"id": "source-a", "name": "Example feed", "url": "https://example.com/feed.xml"}}
 
 
 class CandidateTests(unittest.TestCase):

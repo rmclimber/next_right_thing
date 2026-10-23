@@ -62,7 +62,12 @@ Success response: `200 OK`
       "url": "https://example.com/article",
       "summary": "Optional summary",
       "published_at": "2026-10-02T12:00:00+00:00",
-      "discovered_at": "2026-10-02T13:00:00+00:00"
+      "discovered_at": "2026-10-02T13:00:00+00:00",
+      "content_source": {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "name": "Example feed",
+        "url": "https://example.com/feed.xml"
+      }
     },
     "estimated_duration_minutes": 5,
     "reason": "Recent item that fits your 20-minute window."
@@ -72,6 +77,8 @@ Success response: `200 OK`
 
 When the authenticated user has no Content Items, the endpoint returns `200 OK`
 with `{ "recommendation": null }` and does not create a Recommendation Event.
+`content_source` identifies the owned Content Source that produced the recommended
+Content Item and never exposes its owner.
 Invalid `available_minutes` values return `400 Bad Request` with a JSON
 `message`. Internal failures return a generic `500 Internal Server Error`.
 

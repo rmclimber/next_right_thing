@@ -4,6 +4,10 @@ Minimal Next.js application for Cognito Hosted UI authentication and the
 authenticated Next Right Thing recommendation, Goals, Content Sources, and Content
 Items experiences.
 
+The interface follows the browser's color-scheme preference on first visit. The
+authenticated header's Light/Dark control saves an explicit preference in local
+browser storage for later visits.
+
 ## Configuration
 
 Copy `.env.local.example` to `.env.local` and fill values from CloudFormation
