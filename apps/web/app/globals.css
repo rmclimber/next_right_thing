@@ -161,11 +161,22 @@ textarea {
 }
 
 .theme-toggle {
-  min-height: 36px;
-  padding: 0 12px;
+  width: 38px;
+  min-height: 38px;
+  padding: 0;
   border-color: transparent;
   background: transparent;
   color: #4d5a70;
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .theme-toggle:hover {
