@@ -9,6 +9,11 @@ export type RecommendationContentItem = {
   summary: string | null;
   published_at: string | null;
   discovered_at: string;
+  content_source: {
+    id: string;
+    name: string;
+    url: string;
+  };
 };
 
 export type Recommendation = {

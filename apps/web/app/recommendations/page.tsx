@@ -210,6 +210,14 @@ function RecommendationCard({ recommendation, onAction, isApplyingAction, action
     <section className="recommendation-card recommendation-result" aria-label="Your recommendation">
       <p className="eyebrow">Your next thing</p>
       <h2>{recommendation.content_item.title}</h2>
+      <a
+        className="content-item-source"
+        href={recommendation.content_item.content_source.url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {recommendation.content_item.content_source.name}
+      </a>
       <p className="recommendation-duration">About {recommendation.estimated_duration_minutes} min</p>
       <p className="recommendation-reason">{recommendation.reason}</p>
       {summary ? <p className="content-item-summary">{summary}</p> : null}

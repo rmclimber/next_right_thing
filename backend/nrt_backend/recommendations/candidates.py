@@ -21,6 +21,7 @@ class CandidateAction:
     published_at: datetime | None
     discovered_at: datetime
     created_at: datetime
+    content_source: dict
 
 
 def candidate_from_content_item(item: dict) -> CandidateAction:
@@ -34,6 +35,7 @@ def candidate_from_content_item(item: dict) -> CandidateAction:
         published_at=item["published_at"],
         discovered_at=item["discovered_at"],
         created_at=item["created_at"],
+        content_source=item["content_source"],
     )
 
 

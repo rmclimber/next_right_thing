@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { ThemeToggle } from "./theme-toggle";
+
 const primaryNavigation = [
   { href: "/recommendations", label: "Next Right Thing" },
   { href: "/dashboard", label: "Goals" },
@@ -35,6 +37,7 @@ export function AuthenticatedNavigation({ onSignOut }: AuthenticatedNavigationPr
           );
         })}
       </nav>
+      <ThemeToggle />
       <button className="button sign-out-button" type="button" onClick={onSignOut}>
         Sign Out
       </button>

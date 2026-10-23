@@ -50,6 +50,7 @@ def _response(event_id: str, candidate, reason: str) -> dict:
             "summary": candidate.summary,
             "published_at": candidate.published_at.isoformat() if candidate.published_at else None,
             "discovered_at": candidate.discovered_at.isoformat(),
+            "content_source": candidate.content_source,
         },
         "estimated_duration_minutes": candidate.estimated_duration_minutes,
         "reason": reason,
