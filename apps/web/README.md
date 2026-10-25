@@ -37,3 +37,12 @@ opens the Next Right Thing recommendation experience. Select an available-time
 preset or enter 1–240 custom minutes, then request a recommendation from
 `GET /recommendations/next`. The authenticated navigation also links to Goals,
 Content Sources, and Content Items.
+
+## Frontend tests
+
+The frontend uses Vitest with React Testing Library and user-event. Tests are
+colocated with the components and pages they exercise; API and Cognito
+boundaries are mocked, so they stay fast and make no network calls.
+
+Use `pnpm --filter @nrt/web test` for watch mode, or
+`pnpm --filter @nrt/web test:run` for the CI-friendly one-shot run.

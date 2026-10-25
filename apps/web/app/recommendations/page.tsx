@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { getCurrentUser, signOut } from "aws-amplify/auth";
 
 import { configureAmplify } from "@/lib/amplify-client";
@@ -46,6 +46,7 @@ export default function RecommendationsPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [isApplyingAction, setIsApplyingAction] = useState(false);
+  const recommendationRequestInFlight = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -83,7 +84,7 @@ export default function RecommendationsPage() {
   }
 
   async function loadRecommendation() {
-    if (isRequesting) {
+    if (recommendationRequestInFlight.current) {
       return;
     }
 
@@ -96,12 +97,14 @@ export default function RecommendationsPage() {
     }
 
     try {
+      recommendationRequestInFlight.current = true;
       setIsRequesting(true);
       const response = await getNextRecommendation(Number(availableMinutes));
       setRecommendation(response.recommendation);
     } catch {
       setRequestError("A recommendation could not be loaded. Please try again.");
     } finally {
+      recommendationRequestInFlight.current = false;
       setIsRequesting(false);
     }
   }

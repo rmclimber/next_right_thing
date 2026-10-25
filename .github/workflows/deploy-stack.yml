@@ -557,6 +557,7 @@ jobs:
       - name: Build Frontend Static Export
         if: ${{ env.ENABLE_FRONTEND_HOSTING == 'true' }}
         run: |
+          pnpm --filter @nrt/web test:run
           pnpm build
 
           if [ ! -d apps/web/out ]; then
