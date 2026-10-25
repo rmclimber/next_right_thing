@@ -36,6 +36,8 @@ function item(overrides: Partial<ContentItem>): ContentItem {
 
 describe("ContentItemsPage", () => {
   beforeEach(() => {
+    listContentItems.mockReset();
+    authMocks.getCurrentUser.mockReset();
     authMocks.getCurrentUser.mockResolvedValue({ username: "test-user" });
   });
 
@@ -73,13 +75,14 @@ describe("ContentItemsPage", () => {
     expect(screen.getByRole("link", { name: "Archived article" })).toBeInTheDocument();
   });
 
-  it("shows empty and API error states", async () => {
-    listContentItems.mockResolvedValueOnce({ content_items: [] });
-    const { unmount } = render(<ContentItemsPage />);
+  it("shows an empty state when no Content Items are available", async () => {
+    listContentItems.mockResolvedValue({ content_items: [] });
+    render(<ContentItemsPage />);
     expect(await screen.findByText("No Content Items yet")).toBeInTheDocument();
-    unmount();
+  });
 
-    listContentItems.mockRejectedValueOnce(new Error("offline"));
+  it("shows an API error state when Content Items cannot be loaded", async () => {
+    listContentItems.mockRejectedValue(new Error("offline"));
     render(<ContentItemsPage />);
     expect(await screen.findByText(/Content Items could not be loaded/)).toBeInTheDocument();
   });
