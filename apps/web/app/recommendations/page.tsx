@@ -135,6 +135,7 @@ export default function RecommendationsPage() {
           <div>
             <p className="eyebrow">Next Right Thing</p>
             <h1>What should you do next?</h1>
+            <p className="lede">Choose the time you have, then focus on one worthwhile professional activity.</p>
           </div>
           <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>

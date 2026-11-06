@@ -247,6 +247,7 @@ export default function Dashboard() {
           <div>
             <p className="eyebrow">Next Right Thing</p>
             <h1>Goals</h1>
+            <p className="lede">Keep your professional objectives visible so recommendations can stay focused.</p>
           </div>
           <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>
