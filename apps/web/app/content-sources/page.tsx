@@ -273,6 +273,7 @@ export default function ContentSourcesPage() {
           <div>
             <p className="eyebrow">Next Right Thing</p>
             <h1>Content Sources</h1>
+            <p className="lede">Manage the professional feeds that bring relevant reading into your workspace.</p>
           </div>
           <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>
@@ -433,10 +434,11 @@ export default function ContentSourcesPage() {
                             </div>
                             <p className="source-url">{source.url}</p>
                             <p className="target-date">
-                              {sourceTypeLabels[source.source_type]}
+                              {sourceTypeLabels[source.source_type]} source
                             </p>
                             <p className={`source-health source-health-${source.last_fetch_status ?? "never_checked"}`}>
-                              {source.last_fetch_status ? fetchHealthLabels[source.last_fetch_status] : "Never checked"}
+                              <span className="metadata-label">Feed health</span>
+                              <span>{source.last_fetch_status ? fetchHealthLabels[source.last_fetch_status] : "Never checked"}</span>
                             </p>
                             {fetchHealthDetail(source) ? <p className="source-health-detail">{fetchHealthDetail(source)}</p> : null}
                           </div>

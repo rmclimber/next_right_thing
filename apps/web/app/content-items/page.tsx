@@ -111,6 +111,7 @@ export default function ContentItemsPage() {
           <div>
             <p className="eyebrow">Next Right Thing</p>
             <h1>Content Items</h1>
+            <p className="lede">Browse the professional reading discovered from your active Content Sources.</p>
           </div>
           <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>
@@ -203,7 +204,7 @@ function ContentItemCard({ item }: { item: ContentItem }) {
       <div className="content-item-meta">
         {item.published_at ? <span>Published {formatTimestamp(item.published_at)}</span> : null}
         <span>Discovered {formatTimestamp(item.discovered_at)}</span>
-        {stateLabel ? <span className={`content-item-state state-${item.status}`}>{stateLabel}</span> : null}
+        {stateLabel ? <span className={`status-pill content-item-state state-${item.status}`}>{stateLabel}</span> : null}
       </div>
       <a className="content-item-link" href={item.url} target="_blank" rel="noopener noreferrer">
         Open article
