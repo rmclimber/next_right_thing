@@ -53,6 +53,7 @@ class RecommendationRepositoryTests(unittest.TestCase):
         query, params = cursor.executions[0]
         self.assertIn("WHERE content_items.user_id = %s", query)
         self.assertIn("LEFT JOIN content_item_user_state", query)
+        self.assertIn("content_item_user_state.status = 'active'", query)
         self.assertIn("snoozed_until <= NOW()", query)
         self.assertIn("ORDER BY content_items.discovered_at DESC", query)
         self.assertIn("LIMIT %s", query)
@@ -65,6 +66,20 @@ class RecommendationRepositoryTests(unittest.TestCase):
         query, params = cursor.executions[0]
         self.assertIn("user_id = %s AND status = 'active'", query)
         self.assertEqual(params, ("user-a",))
+
+    def test_recent_recommendation_query_is_user_scoped_bounded_and_deterministically_ordered(self):
+        cursor = FakeCursor(fetchall_result=[(UUID("22222222-2222-2222-2222-222222222222"),)])
+        with patch.object(repository, "connect", return_value=FakeConnection(cursor)):
+            content_item_ids = RecommendationRepository().list_recent_recommended_content_item_ids("user-a")
+
+        query, params = cursor.executions[0]
+        self.assertIn("FROM recommendation_events", query)
+        self.assertIn("WHERE user_id = %s", query)
+        self.assertIn("content_item_id IS NOT NULL", query)
+        self.assertIn("ORDER BY recommended_at DESC, id DESC", query)
+        self.assertIn("LIMIT %s", query)
+        self.assertEqual(params, ("user-a", repository.RECENT_RECOMMENDATION_SUPPRESSION_COUNT))
+        self.assertEqual(content_item_ids, ["22222222-2222-2222-2222-222222222222"])
 
     def test_event_insert_is_parameterized_and_references_selected_content_item(self):
         event_id = UUID("11111111-1111-1111-1111-111111111111")

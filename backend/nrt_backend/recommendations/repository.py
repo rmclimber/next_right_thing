@@ -5,6 +5,7 @@ from nrt_backend.shared.database import connect
 
 
 CANDIDATE_POOL_LIMIT = 50
+RECENT_RECOMMENDATION_SUPPRESSION_COUNT = 3
 
 LIST_RECENT_CONTENT_ITEMS_SQL = """
 SELECT content_items.id, content_items.title, content_items.url, content_items.summary,
@@ -33,6 +34,15 @@ WHERE user_id = %s AND status = 'active'
 ORDER BY created_at DESC, id DESC;
 """
 
+LIST_RECENT_RECOMMENDED_CONTENT_ITEM_IDS_SQL = """
+SELECT content_item_id
+FROM recommendation_events
+WHERE user_id = %s
+  AND content_item_id IS NOT NULL
+ORDER BY recommended_at DESC, id DESC
+LIMIT %s;
+"""
+
 INSERT_RECOMMENDATION_EVENT_SQL = """
 INSERT INTO recommendation_events (
     id, user_id, action_type, content_item_id, available_minutes,
@@ -48,6 +58,13 @@ class RecommendationRepository:
 
     def list_active_goals(self, user_id: str) -> list[dict]:
         return self._fetch_all(LIST_ACTIVE_GOALS_SQL, (user_id,), _goal_from_row)
+
+    def list_recent_recommended_content_item_ids(self, user_id: str) -> list[str]:
+        return self._fetch_all(
+            LIST_RECENT_RECOMMENDED_CONTENT_ITEM_IDS_SQL,
+            (user_id, RECENT_RECOMMENDATION_SUPPRESSION_COUNT),
+            lambda row: str(row[0]),
+        )
 
     def create_event(self, user_id: str, candidate, available_minutes: int, score: float, reason: str) -> str:
         event_id = uuid4()

@@ -24,7 +24,20 @@ class RecommendationService:
             return None
 
         now = self.clock()
-        winner = ranked([score_candidate(candidate, goals, available_minutes, now) for candidate in candidates])[0]
+        recent_content_item_ids = set(self.repository.list_recent_recommended_content_item_ids(user_id))
+        unsuppressed_candidates = [
+            candidate for candidate in candidates
+            if candidate.content_item_id not in recent_content_item_ids
+        ]
+        logger.info("recent recommendation suppression count=%d", len(recent_content_item_ids))
+        if unsuppressed_candidates:
+            selection_pool = unsuppressed_candidates
+            logger.info("using diversity-filtered candidate pool")
+        else:
+            selection_pool = candidates
+            logger.info("falling back to full eligible candidate pool")
+
+        winner = ranked([score_candidate(candidate, goals, available_minutes, now) for candidate in selection_pool])[0]
         reason = _reason(winner, available_minutes)
         event_id = self.repository.create_event(user_id, winner.candidate, available_minutes, winner.total_score, reason)
         logger.info("selected recommendation content_item_id=%s", winner.candidate.content_item_id)
