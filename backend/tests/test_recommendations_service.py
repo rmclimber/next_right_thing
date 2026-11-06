@@ -19,6 +19,7 @@ class RecommendationServiceTests(unittest.TestCase):
         repository = Mock()
         repository.list_active_goals.return_value = [{"title": "Learn Bayesian statistics", "description": None}]
         repository.list_recent_content_items.return_value = [content_item()]
+        repository.list_recent_recommended_content_item_ids.return_value = []
         repository.create_event.return_value = "event-id"
 
         result = RecommendationService(repository, clock=lambda: NOW).recommend_next("user-a", 20)
@@ -40,6 +41,66 @@ class RecommendationServiceTests(unittest.TestCase):
 
         self.assertIsNone(RecommendationService(repository, clock=lambda: NOW).recommend_next("user-a", 20))
         repository.create_event.assert_not_called()
+        repository.list_recent_recommended_content_item_ids.assert_not_called()
+
+    def test_most_recent_recommendation_is_skipped_when_another_candidate_exists(self):
+        repository = Mock()
+        repository.list_active_goals.return_value = []
+        repository.list_recent_content_items.return_value = [content_item("item-a"), content_item("item-b")]
+        repository.list_recent_recommended_content_item_ids.return_value = ["item-a"]
+        repository.create_event.return_value = "event-id"
+
+        result = RecommendationService(repository, clock=lambda: NOW).recommend_next("user-a", 20)
+
+        self.assertEqual(result["content_item"]["id"], "item-b")
+        self.assertEqual(repository.create_event.call_args.args[1].content_item_id, "item-b")
+
+    def test_multiple_recent_recommendations_are_suppressed_but_window_does_not_exclude_older_items(self):
+        repository = Mock()
+        repository.list_active_goals.return_value = []
+        repository.list_recent_content_items.return_value = [
+            content_item("item-a"), content_item("item-b"), content_item("item-c"), content_item("item-d"),
+        ]
+        repository.list_recent_recommended_content_item_ids.return_value = ["item-a", "item-b", "item-c"]
+        repository.create_event.return_value = "event-id"
+
+        result = RecommendationService(repository, clock=lambda: NOW).recommend_next("user-a", 20)
+
+        self.assertEqual(result["content_item"]["id"], "item-d")
+
+    def test_fallback_selects_recent_item_when_every_eligible_candidate_is_suppressed(self):
+        repository = Mock()
+        repository.list_active_goals.return_value = []
+        repository.list_recent_content_items.return_value = [content_item("item-a")]
+        repository.list_recent_recommended_content_item_ids.return_value = ["item-a"]
+        repository.create_event.return_value = "event-id"
+
+        result = RecommendationService(repository, clock=lambda: NOW).recommend_next("user-a", 20)
+
+        self.assertEqual(result["content_item"]["id"], "item-a")
+        repository.create_event.assert_called_once()
+
+    def test_history_for_the_authenticated_user_only_is_used(self):
+        repository = Mock()
+        repository.list_active_goals.return_value = []
+        repository.list_recent_content_items.return_value = [content_item("item-a"), content_item("item-b")]
+        repository.list_recent_recommended_content_item_ids.return_value = ["item-a"]
+        repository.create_event.return_value = "event-id"
+
+        RecommendationService(repository, clock=lambda: NOW).recommend_next("user-b", 20)
+
+        repository.list_recent_recommended_content_item_ids.assert_called_once_with("user-b")
+
+    def test_existing_scoring_orders_unsuppressed_candidates_deterministically(self):
+        repository = Mock()
+        repository.list_active_goals.return_value = []
+        repository.list_recent_content_items.return_value = [content_item("item-b"), content_item("item-a")]
+        repository.list_recent_recommended_content_item_ids.return_value = ["unrelated-item"]
+        repository.create_event.return_value = "event-id"
+
+        result = RecommendationService(repository, clock=lambda: NOW).recommend_next("user-a", 20)
+
+        self.assertEqual(result["content_item"]["id"], "item-a")
 
 
 if __name__ == "__main__":
