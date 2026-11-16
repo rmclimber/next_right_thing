@@ -5,6 +5,9 @@ from uuid import UUID, uuid4
 from nrt_backend.shared.database import connect
 
 
+CONTENT_TYPES = frozenset({"article", "podcast_episode", "video", "research_article", "book"})
+
+
 INSERT_CONTENT_ITEM_SQL = """
 WITH owned_source AS (
     SELECT id
@@ -23,12 +26,16 @@ WITH owned_source AS (
         published_at,
         discovered_at,
         created_at,
-        updated_at
+        updated_at,
+        content_type,
+        duration_minutes
     )
     SELECT
         %s,
         %s,
         owned_source.id,
+        %s,
+        %s,
         %s,
         %s,
         %s,
@@ -64,7 +71,9 @@ SELECT
     content_sources.url,
     COALESCE(content_item_user_state.status, 'active'),
     content_item_user_state.snoozed_until,
-    content_item_user_state.completed_at
+    content_item_user_state.completed_at,
+    content_items.content_type,
+    content_items.duration_minutes
 FROM content_items
 JOIN content_sources
   ON content_sources.id = content_items.content_source_id
@@ -91,6 +100,8 @@ class NewContentItem:
     summary: str | None
     published_at: datetime | None
     discovered_at: datetime
+    content_type: str = "article"
+    duration_minutes: int | None = None
 
 
 class ContentItemRepository:
@@ -116,6 +127,8 @@ class ContentItemRepository:
                         item.discovered_at,
                         now,
                         now,
+                        item.content_type,
+                        item.duration_minutes,
                     ),
                 )
                 source_owned, inserted = cursor.fetchone()
@@ -165,12 +178,16 @@ def _content_item_from_row(row):
         status,
         snoozed_until,
         completed_at,
+        content_type,
+        duration_minutes,
     ) = row
 
     return {
         "id": _uuid_value(item_id),
         "content_source_id": _uuid_value(content_source_id),
         "external_id": external_id,
+        "content_type": content_type,
+        "duration_minutes": duration_minutes,
         "title": title,
         "url": url,
         "summary": summary,

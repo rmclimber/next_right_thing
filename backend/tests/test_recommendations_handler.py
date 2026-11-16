@@ -13,11 +13,15 @@ def event(available_minutes="20", sub="user-a"):
 class RecommendationHandlerTests(unittest.TestCase):
     def test_authenticated_success_uses_jwt_sub_only(self):
         service = Mock()
-        service.recommend_next.return_value = {"recommendation_event_id": "event-a", "action_type": "read_content_item"}
+        service.recommend_next.return_value = {
+            "recommendation_event_id": "event-a", "action_type": "consume_content_item",
+            "content_item": {"id": "item-a", "content_type": "article"},
+        }
         with patch.object(recommendations_handler, "RecommendationService", return_value=service):
             response = recommendations_handler.handler(event(), None)
         self.assertEqual(response["statusCode"], 200)
         self.assertEqual(json.loads(response["body"])["recommendation"]["recommendation_event_id"], "event-a")
+        self.assertEqual(json.loads(response["body"])["recommendation"]["content_item"]["content_type"], "article")
         service.recommend_next.assert_called_once_with("user-a", 20)
 
     def test_no_candidates_is_successful_null_recommendation(self):

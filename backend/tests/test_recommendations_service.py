@@ -10,6 +10,7 @@ NOW = datetime(2026, 10, 4, 12, 0, tzinfo=timezone.utc)
 
 def content_item(item_id="item-a"):
     return {"id": item_id, "title": "Bayesian methods", "url": "https://example.com/article", "summary": "Bayesian statistics overview",
+            "content_type": "article", "duration_minutes": None,
             "published_at": NOW, "discovered_at": NOW, "created_at": NOW,
             "content_source": {"id": "source-a", "name": "Example feed", "url": "https://example.com/feed.xml"}}
 
@@ -25,7 +26,9 @@ class RecommendationServiceTests(unittest.TestCase):
         result = RecommendationService(repository, clock=lambda: NOW).recommend_next("user-a", 20)
 
         self.assertEqual(result["recommendation_event_id"], "event-id")
-        self.assertEqual(result["action_type"], "read_content_item")
+        self.assertEqual(result["action_type"], "consume_content_item")
+        self.assertEqual(result["content_item"]["content_type"], "article")
+        self.assertEqual(result["estimated_duration_minutes"], 5)
         self.assertNotIn("user_id", result)
         self.assertEqual(result["content_item"]["content_source"]["name"], "Example feed")
         self.assertIn("Learn Bayesian statistics", result["reason"])

@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 from datetime import datetime, timezone
 from unittest.mock import patch
 from uuid import UUID
@@ -85,6 +86,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
         self.assertIn("ON CONFLICT (content_source_id, external_id) DO NOTHING", query)
         self.assertNotIn("cognito-user-sub", query)
         self.assertEqual(params[0:4], (new_item().content_source_id, "cognito-user-sub", item_id, "cognito-user-sub"))
+        self.assertEqual(params[-2:], ("article", None))
         self.assertTrue(inserted)
         self.assertTrue(connection.committed)
         self.assertTrue(connection.closed)
@@ -123,7 +125,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
                     item_id, source_id, "feed-guid", "Example title", "https://example.com/post",
                     None, None, discovered_at, discovered_at, discovered_at,
                     source_id, "Example source", "https://example.com/feed.xml",
-                    "active", None, None,
+                    "active", None, None, "article", None,
                 )
             ]
         )
@@ -143,6 +145,8 @@ class ContentItemRepositoryTests(unittest.TestCase):
         self.assertEqual(params, ("cognito-user-sub", "cognito-user-sub"))
         self.assertEqual(result[0]["id"], str(item_id))
         self.assertEqual(result[0]["content_source_id"], str(source_id))
+        self.assertEqual(result[0]["content_type"], "article")
+        self.assertIsNone(result[0]["duration_minutes"])
         self.assertEqual(result[0]["content_source"], {"id": str(source_id), "name": "Example source", "url": "https://example.com/feed.xml"})
         self.assertIsNone(result[0]["summary"])
         self.assertIsNone(result[0]["published_at"])
@@ -158,9 +162,9 @@ class ContentItemRepositoryTests(unittest.TestCase):
         timestamp = datetime(2026, 10, 19, 13, 0, tzinfo=timezone.utc)
         cursor = FakeCursor(
             fetchall_result=[
-                (item_id, source_id, "snoozed", "Snoozed", "https://example.com/snoozed", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "active", datetime(2026, 10, 20, 13, 0, tzinfo=timezone.utc), None),
-                (item_id, source_id, "completed", "Completed", "https://example.com/completed", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "completed", None, timestamp),
-                (item_id, source_id, "archived", "Archived", "https://example.com/archived", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "archived", None, None),
+                (item_id, source_id, "snoozed", "Snoozed", "https://example.com/snoozed", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "active", datetime(2026, 10, 20, 13, 0, tzinfo=timezone.utc), None, "podcast_episode", 42),
+                (item_id, source_id, "completed", "Completed", "https://example.com/completed", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "completed", None, timestamp, "article", None),
+                (item_id, source_id, "archived", "Archived", "https://example.com/archived", None, None, timestamp, timestamp, timestamp, source_id, "Example source", "https://example.com/feed.xml", "archived", None, None, "article", None),
             ]
         )
         connection = FakeConnection(cursor)
@@ -170,6 +174,8 @@ class ContentItemRepositoryTests(unittest.TestCase):
 
         self.assertEqual(result[0]["status"], "active")
         self.assertEqual(result[0]["snoozed_until"], "2026-10-20T13:00:00+00:00")
+        self.assertEqual(result[0]["content_type"], "podcast_episode")
+        self.assertEqual(result[0]["duration_minutes"], 42)
         self.assertEqual(result[1]["status"], "completed")
         self.assertEqual(result[1]["completed_at"], "2026-10-19T13:00:00+00:00")
         self.assertEqual(result[2]["status"], "archived")
@@ -183,6 +189,16 @@ class ContentItemRepositoryTests(unittest.TestCase):
 
         _, params = cursor.executions[0]
         self.assertEqual(params, ("user-b", "user-b"))
+
+    def test_create_persists_explicit_type_and_known_duration(self):
+        cursor = FakeCursor(fetchone_result=(True, True))
+        with patch.object(repository, "connect", return_value=FakeConnection(cursor)):
+            ContentItemRepository().create(replace(new_item(), content_type="podcast_episode", duration_minutes=42))
+        query, params = cursor.executions[0]
+        self.assertIn("content_type", query)
+        self.assertIn("duration_minutes", query)
+        self.assertEqual(params[-2:], ("podcast_episode", 42))
+        self.assertEqual(query.count("%s"), len(params))
 
 
 if __name__ == "__main__":

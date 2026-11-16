@@ -35,11 +35,14 @@ class RecommendationRepositoryTests(unittest.TestCase):
             UUID("22222222-2222-2222-2222-222222222222"), "Title", "https://example.com/article", None,
             None, datetime(2026, 10, 4, tzinfo=timezone.utc), datetime(2026, 10, 4, tzinfo=timezone.utc),
             UUID("33333333-3333-3333-3333-333333333333"), "Example feed", "https://example.com/feed.xml",
+            "podcast_episode", 42,
         )])
         with patch.object(repository, "connect", return_value=FakeConnection(cursor)):
             items = RecommendationRepository().list_recent_content_items("user-a")
 
         self.assertIn("JOIN content_sources", cursor.executions[0][0])
+        self.assertEqual(items[0]["content_type"], "podcast_episode")
+        self.assertEqual(items[0]["duration_minutes"], 42)
         self.assertEqual(items[0]["content_source"], {
             "id": "33333333-3333-3333-3333-333333333333",
             "name": "Example feed",
@@ -88,6 +91,7 @@ class RecommendationRepositoryTests(unittest.TestCase):
         candidate = candidate_from_content_item({
             "id": "22222222-2222-2222-2222-222222222222", "title": "Title", "url": "https://example.com",
             "summary": None, "published_at": None,
+            "content_type": "article", "duration_minutes": None,
             "discovered_at": datetime(2026, 10, 4, tzinfo=timezone.utc), "created_at": datetime(2026, 10, 4, tzinfo=timezone.utc),
             "content_source": {"id": "source-a", "name": "Example feed", "url": "https://example.com/feed.xml"},
         })
@@ -96,7 +100,7 @@ class RecommendationRepositoryTests(unittest.TestCase):
         query, params = cursor.executions[0]
         self.assertIn("INSERT INTO recommendation_events", query)
         self.assertNotIn("user-a", query)
-        self.assertEqual(params[1:6], ("user-a", "read_content_item", candidate.content_item_id, 20, 5))
+        self.assertEqual(params[1:6], ("user-a", "consume_content_item", candidate.content_item_id, 20, 5))
         self.assertEqual(result, str(event_id))
         self.assertTrue(connection.committed)
 

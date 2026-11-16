@@ -1,9 +1,11 @@
 "use client";
 
 import { authenticatedRequest } from "./authenticated-api";
+import type { ContentType } from "./content-items-api";
 
 export type RecommendationContentItem = {
   id: string;
+  content_type: ContentType;
   title: string;
   url: string;
   summary: string | null;

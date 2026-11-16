@@ -2,8 +2,12 @@
 
 import { authenticatedRequest } from "./authenticated-api";
 
+export type ContentType = "article" | "podcast_episode" | "video" | "research_article" | "book";
+
 export type ContentItem = {
   id: string;
+  content_type: ContentType;
+  duration_minutes: number | null;
   content_source_id: string;
   external_id: string;
   title: string;

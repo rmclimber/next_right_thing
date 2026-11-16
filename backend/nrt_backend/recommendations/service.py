@@ -58,6 +58,7 @@ def _response(event_id: str, candidate, reason: str) -> dict:
         "action_type": candidate.action_type,
         "content_item": {
             "id": candidate.content_item_id,
+            "content_type": candidate.content_type,
             "title": candidate.title,
             "url": candidate.url,
             "summary": candidate.summary,

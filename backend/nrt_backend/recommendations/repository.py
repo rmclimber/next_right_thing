@@ -10,7 +10,8 @@ RECENT_RECOMMENDATION_SUPPRESSION_COUNT = 3
 LIST_RECENT_CONTENT_ITEMS_SQL = """
 SELECT content_items.id, content_items.title, content_items.url, content_items.summary,
        content_items.published_at, content_items.discovered_at, content_items.created_at,
-       content_sources.id, content_sources.name, content_sources.url
+       content_sources.id, content_sources.name, content_sources.url,
+       content_items.content_type, content_items.duration_minutes
 FROM content_items
 JOIN content_sources
   ON content_sources.id = content_items.content_source_id
@@ -98,8 +99,10 @@ class RecommendationRepository:
 
 
 def _content_item_from_row(row):
-    item_id, title, url, summary, published_at, discovered_at, created_at, source_id, source_name, source_url = row
+    (item_id, title, url, summary, published_at, discovered_at, created_at,
+     source_id, source_name, source_url, content_type, duration_minutes) = row
     return {"id": str(item_id), "title": title, "url": url, "summary": summary,
+            "content_type": content_type, "duration_minutes": duration_minutes,
             "published_at": published_at, "discovered_at": discovered_at, "created_at": created_at,
             "content_source": {"id": str(source_id), "name": source_name, "url": source_url}}
 
