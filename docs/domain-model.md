@@ -87,6 +87,10 @@ Examples:
 - Journal
 
 For the initial implementation, RSS is the only supported source type.
+`ContentSource.source_type` describes how/where content is obtained;
+`ContentItem.content_type` describes what kind of content it is. They are
+independent: a future RSS source may produce `podcast_episode` items without a
+new source type.
 
 Content Source lifecycle status (`active`, `paused`, or `archived`) controls
 whether NRT dispatches the source. RSS fetch health is separate operational
@@ -117,8 +121,25 @@ poll does not delete the previously discovered Content Item.
 A Content Item always records when NRT discovered it. Its publication time may be
 absent when the source does not provide a reliable value.
 
-Topic and Goal relationships are future concepts and are not part of the initial
-persisted Content Item model.
+Content Item is the generic durable content object. Its common fields are `id`,
+`user_id`, `content_source_id`, `content_type`, `external_id`, `title`, `url`,
+`summary`, `published_at`, `discovered_at`, `created_at`, and `updated_at`.
+`content_type` is required and constrained to `article`, `podcast_episode`,
+`video`, `research_article`, or `book`. Existing items are backfilled as
+`article`; ordinary RSS ingestion continues to produce articles without type
+inference. Other values establish a contract, not new ingestion capabilities.
+
+Optional `duration_minutes` is a positive integer recording known/source-provided
+expected consumption time. Unknown duration is `null`, including ordinary RSS
+articles. It is never populated from a summary heuristic. Candidate Action
+`estimated_duration_minutes` is resolved at runtime: use known duration when
+present, otherwise the existing deterministic summary-based reading estimate
+(225 words/minute, minimum five minutes). This fallback also applies to future
+types until a later slice explicitly changes it. Known duration is not clamped
+to the five-minute minimum or the available-time window.
+
+Topic and Goal relationships and type-specific metadata are future concepts and
+are not part of the current persisted Content Item model.
 
 ### Recommendation
 
@@ -206,17 +227,25 @@ Recommendation Events are used to:
 - avoid excessive repetition
 - evaluate recommendation quality
 
-For the first recommendation slice, a Recommendation Event records a durable
-`read_content_item` decision, its available-time context, estimated duration,
+A Recommendation Event records a durable `consume_content_item` decision,
+its available-time context, resolved estimated duration,
 deterministic score, explanation, and optional future outcome. The referenced
-Candidate Action itself is not persisted.
+Candidate Action itself is not persisted. Historical `read_content_item` events
+remain valid and unchanged; new decisions use `consume_content_item`. Event
+`action_type` remains text, without a new constraint or history rewrite.
 
 ### Candidate Action
 
 A Candidate Action is an ephemeral internal representation of one actionable
-option considered during a recommendation request. The first implementation
-derives only `read_content_item` Candidate Actions from a user's Content Items.
+option considered during a recommendation request. Content Items produce
+`consume_content_item` Candidate Actions: perform the primary consumption action
+associated with the item. Each candidate preserves `content_type` and resolves
+`estimated_duration_minutes` from known duration or the existing heuristic.
 Candidate Actions are not database entities and are discarded after ranking.
+
+Content Item = generic durable content; Candidate Action = ephemeral thing the
+User can do; Recommendation Event = durable recommendation decision. New action
+labels, ingestion, and type-specific scoring are outside this contract slice.
 
 ### Content Item User State
 

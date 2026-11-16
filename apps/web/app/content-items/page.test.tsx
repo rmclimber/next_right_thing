@@ -17,6 +17,8 @@ const source = { id: "source-1", name: "Professional Reading", url: "https://exa
 function item(overrides: Partial<ContentItem>): ContentItem {
   return {
     id: "item-1",
+    content_type: "article",
+    duration_minutes: null,
     content_source_id: source.id,
     external_id: "external-1",
     title: "First article",
@@ -39,6 +41,15 @@ describe("ContentItemsPage", () => {
     listContentItems.mockReset();
     authMocks.getCurrentUser.mockReset();
     authMocks.getCurrentUser.mockResolvedValue({ username: "test-user" });
+  });
+
+  it("renders an article with nullable duration and no extra type badge", async () => {
+    listContentItems.mockResolvedValue({ content_items: [item({ duration_minutes: null })] });
+    render(<ContentItemsPage />);
+    expect(await screen.findByRole("link", { name: "First article" })).toBeInTheDocument();
+    expect(screen.getByText("A concise summary.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open article" })).toHaveAttribute("href", "https://example.com/article");
+    expect(screen.queryByText("Article", { exact: true })).not.toBeInTheDocument();
   });
 
   it("renders item source and disposition filters without changing API order", async () => {

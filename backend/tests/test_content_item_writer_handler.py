@@ -32,6 +32,39 @@ class ContentItemWriterHandlerTests(unittest.TestCase):
         self.assertEqual(item.user_id, "cognito-user-sub")
         self.assertEqual(str(item.content_source_id), "550e8400-e29b-41d4-a716-446655440000")
         self.assertEqual(item.discovered_at.isoformat(), "2026-09-15T13:00:00+00:00")
+        self.assertEqual(item.content_type, "article")
+        self.assertIsNone(item.duration_minutes)
+
+    def test_explicit_types_and_durations_are_preserved(self):
+        for content_type in ("article", "podcast_episode", "video", "research_article", "book"):
+            for duration in (None, 1, 42, 600):
+                with self.subTest(content_type=content_type, duration=duration):
+                    repository = Mock()
+                    with patch.object(writer_handler, "ContentItemRepository", return_value=repository):
+                        response = writer_handler.handler({"Records": [message(content_type=content_type, duration_minutes=duration)]}, None)
+                    self.assertEqual(response, {"batchItemFailures": []})
+                    item = repository.create.call_args.args[0]
+                    self.assertEqual(item.content_type, content_type)
+                    self.assertEqual(item.duration_minutes, duration)
+
+    def test_invalid_types_and_durations_are_acknowledged_without_persistence(self):
+        invalid_fields = [{"content_type": value} for value in (None, "", "audio", "Article", 1, [])]
+        invalid_fields += [{"duration_minutes": value} for value in (0, -1, True, False, 1.5, "42", 2_147_483_648)]
+        for fields in invalid_fields:
+            with self.subTest(fields=fields):
+                repository = Mock()
+                with patch.object(writer_handler, "ContentItemRepository", return_value=repository):
+                    response = writer_handler.handler({"Records": [message(**fields)]}, None)
+                self.assertEqual(response, {"batchItemFailures": []})
+                repository.create.assert_not_called()
+
+    def test_duplicate_delivery_is_acknowledged(self):
+        repository = Mock()
+        repository.create.return_value = False
+        with patch.object(writer_handler, "ContentItemRepository", return_value=repository):
+            response = writer_handler.handler({"Records": [message(content_type="article", duration_minutes=None)]}, None)
+        self.assertEqual(response, {"batchItemFailures": []})
+        repository.create.assert_called_once()
 
     def test_malformed_json_is_acknowledged_without_persistence(self):
         repository = Mock()

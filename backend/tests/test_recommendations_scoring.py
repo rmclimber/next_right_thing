@@ -10,14 +10,16 @@ NOW = datetime(2026, 10, 4, 12, 0, tzinfo=timezone.utc)
 
 def item(item_id="item-a", published_at=NOW, discovered_at=NOW, summary="Learn practical Bayesian statistics"):
     return {"id": item_id, "title": "Bayesian methods", "url": "https://example.com/article", "summary": summary,
+            "content_type": "article", "duration_minutes": None,
             "published_at": published_at, "discovered_at": discovered_at, "created_at": discovered_at,
             "content_source": {"id": "source-a", "name": "Example feed", "url": "https://example.com/feed.xml"}}
 
 
 class CandidateTests(unittest.TestCase):
-    def test_content_item_becomes_read_candidate_with_deterministic_duration(self):
+    def test_content_item_becomes_consume_candidate_with_deterministic_duration(self):
         candidate = candidate_from_content_item(item(summary="word " * 1126))
-        self.assertEqual(candidate.action_type, "read_content_item")
+        self.assertEqual(candidate.action_type, "consume_content_item")
+        self.assertEqual(candidate.content_type, "article")
         self.assertEqual(candidate.estimated_duration_minutes, 6)
 
     def test_short_summary_uses_five_minute_minimum(self):
@@ -29,8 +31,34 @@ class CandidateTests(unittest.TestCase):
         self.assertIsNone(candidate.published_at)
         self.assertEqual(estimate_reading_duration(None), 5)
 
+    def test_known_duration_overrides_estimate_without_minimum_or_time_window_cap(self):
+        for duration in (1, 42, 600):
+            with self.subTest(duration=duration):
+                content = {**item(summary="word " * 1126), "content_type": "podcast_episode", "duration_minutes": duration}
+                candidate = candidate_from_content_item(content)
+                self.assertEqual(candidate.content_type, "podcast_episode")
+                self.assertEqual(candidate.estimated_duration_minutes, duration)
+                self.assertEqual(content["duration_minutes"], duration)
+
+    def test_null_duration_keeps_estimate_ephemeral(self):
+        content = item(summary="word " * 1126)
+        self.assertEqual(candidate_from_content_item(content).estimated_duration_minutes, 6)
+        self.assertIsNone(content["duration_minutes"])
+
 
 class ScoringTests(unittest.TestCase):
+    def test_type_does_not_affect_scoring_and_existing_article_score_is_unchanged(self):
+        article = score_candidate(candidate_from_content_item(item()), [], 10, NOW)
+        podcast = score_candidate(candidate_from_content_item({**item(), "content_type": "podcast_episode"}), [], 10, NOW)
+        self.assertEqual(article.total_score, 0.40 + 0.25 * 0.75)
+        self.assertEqual(article.total_score, podcast.total_score)
+
+    def test_known_duration_flows_into_existing_duration_fit_score(self):
+        candidate = candidate_from_content_item({**item(), "duration_minutes": 10})
+        scored = score_candidate(candidate, [], 10, NOW)
+        self.assertEqual(scored.duration_fit_score, 1.0)
+        self.assertEqual(scored.total_score, 0.65)
+
     def test_newer_content_scores_higher_and_published_at_takes_precedence(self):
         newer = candidate_from_content_item(item(published_at=NOW - timedelta(hours=12)))
         older = candidate_from_content_item(item(published_at=NOW - timedelta(days=8)))

@@ -74,6 +74,13 @@ The initial service is invoked synchronously by the authenticated
 `GET /recommendations/next` API Lambda. It loads bounded, user-scoped Content
 Items and active Goals from Aurora, derives ephemeral Candidate Actions, ranks
 them deterministically, and persists only the selected Recommendation Event.
+Content Items are generic durable content with a constrained `content_type` and
+nullable known `duration_minutes`. Candidate Actions are ephemeral and use
+`consume_content_item`, preserving the item type. Recommendation Events are
+durable; historical `read_content_item` decisions remain unchanged. The
+recommendation response adds the item type; ranking weights, lexical relevance,
+recency, diversity suppression, and disposition eligibility remain unchanged.
+
 Its Lambda uses JSON application logs at `INFO` for the bounded candidate, Goal
 count, selection, and event-persistence operational messages; Lambda system
 logs remain at `WARN`.
@@ -83,7 +90,8 @@ The deterministic v1 score is `0.40 * recency + 0.35 * goal relevance + 0.25
 items under one day old, 0.7 under seven days, 0.4 under 30 days, and 0.1
 otherwise, using `published_at` or `discovered_at` as a fallback. Goal relevance
 is lexical overlap between normalized title/summary and active Goal
-title/description tokens. Reading duration uses summary word count at 225 words
+title/description tokens. Candidate duration first uses Content Item
+`duration_minutes` when known. Otherwise, reading duration uses summary word count at 225 words
 per minute, with a five-minute minimum because feed summaries are often
 truncated excerpts. A fitting item
 scores from 0.5 to 1.0 according to how closely it fills the time window; an
@@ -139,7 +147,12 @@ feeds without a NAT Gateway. RSS Fetch additionally uses the RDS Data API for
 one lightweight, ownership-scoped Content Source health update after each
 fetch/parse outcome; application APIs and Writer database access remain psycopg
 over the VPC. The normalized message contract is documented in
-`docs/content-item-ingestion.md`.
+`docs/content-item-ingestion.md`. `ContentSource.source_type` identifies the
+acquisition mechanism/provider; `ContentItem.content_type` identifies the item
+kind. RSS currently emits only `article`/unknown duration. Future RSS podcast
+items can use the same source type and normalized queue without new resources.
+The Writer defaults omitted type/duration to `article`/`null` and does no type
+inference. See ADR-0007 for the shared contract and rollout order.
 
 ---
 

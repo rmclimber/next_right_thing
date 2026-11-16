@@ -17,14 +17,23 @@ def event(method="GET", sub="cognito-user-sub"):
 class ContentItemsHandlerTests(unittest.TestCase):
     def test_get_returns_only_authenticated_users_items(self):
         repository = Mock()
-        repository.list_for_user.return_value = [{"id": "owned-item", "summary": None, "published_at": None}]
+        repository.list_for_user.return_value = [{"id": "owned-item", "content_type": "article", "duration_minutes": None, "summary": None, "published_at": None}]
 
         with patch.object(content_items_handler, "ContentItemRepository", return_value=repository):
             response = content_items_handler.handler(event(sub="user-a-sub"), None)
 
         self.assertEqual(response["statusCode"], 200)
-        self.assertEqual(json.loads(response["body"]), {"content_items": [{"id": "owned-item", "summary": None, "published_at": None}]})
+        self.assertEqual(json.loads(response["body"]), {"content_items": [{"id": "owned-item", "content_type": "article", "duration_minutes": None, "summary": None, "published_at": None}]})
         repository.list_for_user.assert_called_once_with("user-a-sub")
+
+    def test_get_exposes_known_duration(self):
+        repository = Mock()
+        repository.list_for_user.return_value = [{"id": "owned-item", "content_type": "podcast_episode", "duration_minutes": 42}]
+        with patch.object(content_items_handler, "ContentItemRepository", return_value=repository):
+            response = content_items_handler.handler(event(), None)
+        item = json.loads(response["body"])["content_items"][0]
+        self.assertEqual(item["content_type"], "podcast_episode")
+        self.assertEqual(item["duration_minutes"], 42)
 
     def test_get_empty_collection_succeeds(self):
         repository = Mock()

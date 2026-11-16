@@ -55,9 +55,10 @@ Success response: `200 OK`
 {
   "recommendation": {
     "recommendation_event_id": "550e8400-e29b-41d4-a716-446655440000",
-    "action_type": "read_content_item",
+    "action_type": "consume_content_item",
     "content_item": {
       "id": "550e8400-e29b-41d4-a716-446655440001",
+      "content_type": "article",
       "title": "Example title",
       "url": "https://example.com/article",
       "summary": "Optional summary",
@@ -74,6 +75,14 @@ Success response: `200 OK`
   }
 }
 ```
+
+New recommendations use `action_type = consume_content_item` (the primary
+consumption action for the referenced item). Historical `read_content_item`
+Recommendation Events remain unchanged; the frontend accepts both action names
+for rollout compatibility. `content_item.content_type` uses the Content Item
+type values below. `estimated_duration_minutes` prefers known item duration,
+otherwise the existing deterministic summary estimate. No type-specific fields
+are added to the recommendation object.
 
 When the authenticated user has no Content Items, the endpoint returns `200 OK`
 with `{ "recommendation": null }` and does not create a Recommendation Event.
@@ -101,6 +110,8 @@ Success response: `200 OK`
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "content_source_id": "550e8400-e29b-41d4-a716-446655440001",
       "external_id": "feed-guid-or-atom-id",
+      "content_type": "article",
+      "duration_minutes": null,
       "title": "Example title",
       "url": "https://example.com/post",
       "summary": "Optional summary",
@@ -120,6 +131,14 @@ Success response: `200 OK`
   ]
 }
 ```
+
+`content_type` is one of `article`, `podcast_episode`, `video`,
+`research_article`, or `book`. Only ordinary RSS articles have ingestion support
+in this milestone. `duration_minutes` is a known/source-provided positive integer
+or `null` when unknown; it is separate from the runtime Candidate Action
+estimate and is not populated from summary length. PostgreSQL integer bounds
+apply (1 through 2,147,483,647). Source type is independent of item type:
+`ContentSource.source_type = rss` can later yield `content_type = podcast_episode`.
 
 `summary` and `published_at` may be `null`. `content_source` is the owned source
 that produced the item and never exposes its owner. `status` is `active`, `completed`,

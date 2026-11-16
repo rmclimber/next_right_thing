@@ -12,6 +12,8 @@ normalizes RSS/Atom entries, then sends them to this queue.
   "user_id": "cognito-sub",
   "content_source_id": "550e8400-e29b-41d4-a716-446655440000",
   "external_id": "feed-guid-or-atom-id",
+  "content_type": "article",
+  "duration_minutes": null,
   "title": "Example title",
   "url": "https://example.com/post",
   "summary": "Optional summary",
@@ -22,13 +24,39 @@ normalizes RSS/Atom entries, then sends them to this queue.
 
 Required fields are `user_id`, `content_source_id`, `external_id`, `title`,
 `url`, and `discovered_at`. `summary` and `published_at` may be omitted or
-`null`. Timestamps must be timezone-aware ISO 8601 values. The message must not
+`null`. For compatibility with older producers, an omitted `content_type`
+defaults to `article`; an omitted or explicitly null `duration_minutes` defaults
+to `null`. Explicit `content_type` must be one of `article`, `podcast_episode`,
+`video`, `research_article`, or `book`; null, unknown, or non-string types are
+rejected. Known duration must be a positive JSON integer within PostgreSQL
+integer bounds (1 through 2,147,483,647); booleans, fractions, numeric strings,
+zero, and negative values are rejected. Invalid values follow the existing
+permanent-message acknowledgement policy.
+
+RSS Fetch explicitly emits `content_type = article` and
+`duration_minutes = null` for every current RSS/Atom entry. Neither Fetch nor
+Writer infers type or known duration. `ContentSource.source_type` describes how/
+where content is obtained; `ContentItem.content_type` describes what the item
+is. These are independent, so a later RSS producer may emit podcast episodes.
+Known duration is durable source metadata; the summary-based Candidate Action
+estimate is ephemeral and is never written back into Content Items.
+
+Timestamps must be timezone-aware ISO 8601 values. The message must not
 include database-generated IDs, producer-owned created/updated timestamps,
 recommendation metadata, Topics, or embeddings.
 
 The Content Item Writer generates `id`, `created_at`, and `updated_at`. It
 inserts idempotently by `(content_source_id, external_id)` and verifies that the
-referenced Content Source belongs to `user_id` before inserting.
+referenced Content Source belongs to `user_id` before inserting. Duplicate
+messages do not update existing item metadata, including type or duration.
+
+Deploy migration `20261116_0008` before updated writers or API readers. It
+backfills all existing items to non-null `article`, leaves duration unknown, and
+retains a database `article` default so the old Writer remains compatible. Deploy
+the frontend accepting both action names before enabling the new recommendation
+response. Deploy Writer before the extended RSS Fetch producer, since the old
+Writer rejects unknown message fields. The updated Writer accepts old queued
+messages throughout this rollout. No Recommendation Event history is rewritten.
 
 Malformed messages and ownership-invalid messages are logged safely and
 acknowledged. They do not currently have a dead-letter queue. Transient database

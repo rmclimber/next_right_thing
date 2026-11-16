@@ -206,7 +206,7 @@ export default function RecommendationsPage() {
 function RecommendationCard({ recommendation, onAction, isApplyingAction, actionError }: { recommendation: Recommendation; onAction: (action: ContentItemAction) => void; isApplyingAction: boolean; actionError: string | null }) {
   const summary = summaryAsPlainText(recommendation.content_item.summary);
 
-  if (recommendation.action_type !== "read_content_item") {
+  if (recommendation.action_type !== "consume_content_item" && recommendation.action_type !== "read_content_item") {
     return <p className="error">This recommendation cannot be displayed yet.</p>;
   }
 

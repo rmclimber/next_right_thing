@@ -1,9 +1,11 @@
 "use client";
 
 import { authenticatedRequest } from "./authenticated-api";
+import type { ContentType } from "./content-items-api";
 
 export type RecommendationContentItem = {
   id: string;
+  content_type: ContentType;
   title: string;
   url: string;
   summary: string | null;
@@ -18,7 +20,7 @@ export type RecommendationContentItem = {
 
 export type Recommendation = {
   recommendation_event_id: string;
-  action_type: "read_content_item";
+  action_type: "consume_content_item" | "read_content_item";
   content_item: RecommendationContentItem;
   estimated_duration_minutes: number;
   reason: string;

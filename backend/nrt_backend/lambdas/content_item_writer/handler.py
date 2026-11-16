@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 from nrt_backend.content_items.repository import (
+    CONTENT_TYPES,
     ContentItemRepository,
     ContentSourceOwnershipError,
     NewContentItem,
@@ -22,6 +23,8 @@ MESSAGE_FIELDS = {
     "summary",
     "published_at",
     "discovered_at",
+    "content_type",
+    "duration_minutes",
 }
 
 
@@ -66,7 +69,25 @@ def _content_item_from_record(record):
         summary=_optional_string(payload, "summary"),
         published_at=_optional_timestamp(payload, "published_at"),
         discovered_at=_timestamp(payload.get("discovered_at"), "discovered_at"),
+        content_type=_content_type(payload),
+        duration_minutes=_duration_minutes(payload),
     )
+
+
+def _content_type(payload):
+    value = payload.get("content_type", "article")
+    if not isinstance(value, str) or value not in CONTENT_TYPES:
+        raise ValueError("content_type must be article, podcast_episode, video, research_article, or book")
+    return value
+
+
+def _duration_minutes(payload):
+    value = payload.get("duration_minutes")
+    if value is None:
+        return None
+    if type(value) is not int or not 1 <= value <= 2_147_483_647:
+        raise ValueError("duration_minutes must be a positive PostgreSQL integer or null")
+    return value
 
 
 def _required_string(payload, field):

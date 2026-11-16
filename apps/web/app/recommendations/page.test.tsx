@@ -16,8 +16,8 @@ vi.mock("@/lib/recommendations-api", () => ({ getNextRecommendation, applyConten
 import RecommendationsPage from "./page";
 
 const recommendation: Recommendation = {
-  recommendation_event_id: "event-1", action_type: "read_content_item",
-  content_item: { id: "item-1", title: "A useful article", url: "https://example.com/article", summary: "A useful <strong>summary</strong>.", published_at: "2026-10-10T00:00:00Z", discovered_at: "2026-10-11T00:00:00Z", content_source: { id: "source-1", name: "Professional Reading", url: "https://example.com/feed" } },
+  recommendation_event_id: "event-1", action_type: "consume_content_item",
+  content_item: { id: "item-1", content_type: "article", title: "A useful article", url: "https://example.com/article", summary: "A useful <strong>summary</strong>.", published_at: "2026-10-10T00:00:00Z", discovered_at: "2026-10-11T00:00:00Z", content_source: { id: "source-1", name: "Professional Reading", url: "https://example.com/feed" } },
   estimated_duration_minutes: 15, reason: "It fits your available time.",
 };
 
@@ -30,8 +30,8 @@ function deferred<T>() {
 describe("RecommendationsPage", () => {
   beforeEach(() => { authMocks.getCurrentUser.mockResolvedValue({ username: "test-user" }); });
 
-  it("requests a recommendation and renders its user-visible details", async () => {
-    getNextRecommendation.mockResolvedValueOnce({ recommendation });
+  it.each(["consume_content_item", "read_content_item"] as const)("renders article details for %s", async (action_type) => {
+    getNextRecommendation.mockResolvedValueOnce({ recommendation: { ...recommendation, action_type } });
     const user = userEvent.setup();
     render(<RecommendationsPage />);
     expect(await screen.findByRole("button", { name: "5 min" })).toBeInTheDocument();
