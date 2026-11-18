@@ -1,4 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authMocks, amplifyMocks } from "@/test/mocks";
@@ -75,5 +76,19 @@ describe("ContentSourcesPage", () => {
     render(<ContentSourcesPage />);
 
     expect(await screen.findByText(/Content Sources could not be loaded/)).toBeInTheDocument();
+  });
+
+  it("registers a podcast RSS URL through the existing source form", async () => {
+    listContentSources.mockResolvedValueOnce({ content_sources: [] });
+    createContentSource.mockResolvedValueOnce(source({ name: "Professional Podcast", url: "https://example.com/podcast.xml" }));
+    const user = userEvent.setup();
+    render(<ContentSourcesPage />);
+    expect(await screen.findByText(/Add an article or podcast RSS feed URL/)).toBeInTheDocument();
+    await user.type(screen.getByRole("textbox", { name: "Name" }), "Professional Podcast");
+    await user.type(screen.getByRole("textbox", { name: "URL" }), "https://example.com/podcast.xml");
+    await user.click(screen.getByRole("button", { name: "Add Source" }));
+    expect(createContentSource).toHaveBeenCalledWith({ name: "Professional Podcast", url: "https://example.com/podcast.xml" });
+    expect(await screen.findByRole("heading", { name: "Professional Podcast" })).toBeInTheDocument();
+    expect(screen.getByText("RSS source")).toBeInTheDocument();
   });
 });

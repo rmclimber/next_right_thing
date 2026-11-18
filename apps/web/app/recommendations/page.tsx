@@ -213,6 +213,7 @@ function RecommendationCard({ recommendation, onAction, isApplyingAction, action
   return (
     <section className="recommendation-card recommendation-result" aria-label="Your recommendation">
       <p className="eyebrow">Your next thing</p>
+      {recommendation.content_item.content_type === "podcast_episode" ? <p className="status-pill">Podcast episode</p> : null}
       <h2>{recommendation.content_item.title}</h2>
       <a
         className="content-item-source"
@@ -227,7 +228,7 @@ function RecommendationCard({ recommendation, onAction, isApplyingAction, action
       {summary ? <p className="content-item-summary">{summary}</p> : null}
       {actionError ? <p className="error compact-error">{actionError}</p> : null}
       <div className="form-actions">
-        <a className="button primary" href={recommendation.content_item.url} target="_blank" rel="noopener noreferrer">Open</a>
+        <a className="button primary" href={recommendation.content_item.url} target="_blank" rel="noopener noreferrer">{recommendation.content_item.content_type === "podcast_episode" ? "Listen externally" : "Open"}</a>
         <button className="button" type="button" disabled={isApplyingAction} onClick={() => onAction("complete")}>{isApplyingAction ? "Saving..." : "Complete"}</button>
         <button className="button" type="button" disabled={isApplyingAction} onClick={() => onAction("snooze")}>Snooze</button>
         <button className="button" type="button" disabled={isApplyingAction} onClick={() => onAction("archive")}>Archive</button>

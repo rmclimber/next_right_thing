@@ -149,10 +149,14 @@ fetch/parse outcome; application APIs and Writer database access remain psycopg
 over the VPC. The normalized message contract is documented in
 `docs/content-item-ingestion.md`. `ContentSource.source_type` identifies the
 acquisition mechanism/provider; `ContentItem.content_type` identifies the item
-kind. RSS currently omits type/duration fields; Writer defaults them to
-`article`/`null` and does no type inference. Future RSS podcast items can use the
-same source type and normalized queue without new resources. See ADR-0007 for
-the shared contract and rollout order.
+kind. Ordinary RSS entries omit type/duration fields; Writer defaults them to
+`article`/`null` and does no type inference. RSS Fetch's encapsulated podcast
+parser identifies entries with usable HTTP(S) audio enclosures and emits
+`podcast_episode` with nullable known duration into the same queue. The common
+item URL is the audio enclosure for external listening. Source registration,
+dispatch, Writer, persistence, and recommendation backend contracts are reused
+without new resources or migrations. See ADR-0007 for the shared contract and
+`docs/features/podcast-support/spec.md` for podcast behavior and rollout.
 
 ---
 

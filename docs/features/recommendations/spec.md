@@ -18,5 +18,4 @@ so that I can immediately use a short period of available time.
 - personalization
 - learning goals
 - AI ranking
-- podcasts
 - notifications

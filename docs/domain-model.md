@@ -89,8 +89,8 @@ Examples:
 For the initial implementation, RSS is the only supported source type.
 `ContentSource.source_type` describes how/where content is obtained;
 `ContentItem.content_type` describes what kind of content it is. They are
-independent: a future RSS source may produce `podcast_episode` items without a
-new source type.
+independent: an RSS source may produce articles and `podcast_episode` items
+without a new source type. Podcast feeds are registered as RSS Content Sources.
 
 Content Source lifecycle status (`active`, `paused`, or `archived`) controls
 whether NRT dispatches the source. RSS fetch health is separate operational
@@ -126,8 +126,13 @@ Content Item is the generic durable content object. Its common fields are `id`,
 `summary`, `published_at`, `discovered_at`, `created_at`, and `updated_at`.
 `content_type` is required and constrained to `article`, `podcast_episode`,
 `video`, `research_article`, or `book`. Existing items are backfilled as
-`article`; ordinary RSS ingestion continues to produce articles without type
-inference. Other values establish a contract, not new ingestion capabilities.
+`article`; ordinary RSS ingestion continues to produce articles. An entry with
+a valid HTTP(S) audio enclosure produces `podcast_episode`; other type values
+establish a contract, not new ingestion capabilities. Episodes use their audio
+enclosure as `url` for external listening and their description as `summary`.
+Episode identity uses GUID/Atom ID, then entry link, then audio URL. Existing
+items keep their metadata on duplicate discovery, including previously ingested
+articles; this slice does not reclassify historical items.
 
 Optional `duration_minutes` is a positive integer recording known/source-provided
 expected consumption time. Unknown duration is `null`, including ordinary RSS
@@ -137,6 +142,11 @@ present, otherwise the existing deterministic summary-based reading estimate
 (225 words/minute, minimum five minutes). This fallback also applies to future
 types until a later slice explicitly changes it. Known duration is not clamped
 to the five-minute minimum or the available-time window.
+
+Podcast `duration_minutes` comes from iTunes integer seconds, `MM:SS`, or
+`HH:MM:SS`, rounded up to positive whole minutes. Missing or malformed duration
+remains null and uses the same runtime fallback. No new duration eligibility
+filter is introduced: over-window items remain eligible with lower duration fit.
 
 Topic and Goal relationships and type-specific metadata are future concepts and
 are not part of the current persisted Content Item model.

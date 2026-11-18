@@ -12,7 +12,7 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigationMocks.pathname,
-  useRouter: () => ({ replace: navigationMocks.replace }),
+  useRouter: () => navigationMocks,
 }));
 
 vi.mock("aws-amplify/auth", () => authMocks);

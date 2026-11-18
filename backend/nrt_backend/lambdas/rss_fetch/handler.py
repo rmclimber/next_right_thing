@@ -9,6 +9,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from nrt_backend.lambdas.rss_fetch import podcast
 from nrt_backend.lambdas.rss_fetch.source_health import DataApiContentSourceHealthRepository
 
 
@@ -103,34 +104,41 @@ def _normalized_items(job, entries, discovered_at):
 
 
 def _normalize_entry(job, entry, discovered_at):
+    audio_url = podcast.audio_enclosure_url(entry)
     external_id = _entry_string(entry, "id")
     url = _entry_string(entry, "link")
     if not external_id:
-        external_id = url
+        external_id = url or audio_url
     title = _entry_string(entry, "title")
     if not external_id or not title:
         return None
     try:
-        url = _http_url(url)
-    except PermanentJobError:
+        url = _http_url(audio_url or url)
+    except ValueError:
         return None
-    return {
+    item = {
         "user_id": job["user_id"],
         "content_source_id": job["content_source_id"],
         "external_id": external_id,
         "title": title,
         "url": url,
-        "summary": _entry_string(entry, "summary"),
+        "summary": podcast.description(entry) if audio_url else _entry_string(entry, "summary"),
         "published_at": _published_at(entry),
         "discovered_at": discovered_at,
     }
+    if audio_url:
+        item.update(content_type="podcast_episode", duration_minutes=podcast.duration_minutes(entry))
+    return item
 
 
 def _published_at(entry):
     for field in ("published_parsed", "updated_parsed"):
         value = entry.get(field)
         if value:
-            return datetime(*value[:6], tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+            try:
+                return datetime(*value[:6], tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+            except (TypeError, ValueError, OverflowError):
+                pass
     for field in ("published", "updated"):
         value = _entry_string(entry, field)
         if value:
@@ -138,7 +146,7 @@ def _published_at(entry):
                 timestamp = parsedate_to_datetime(value)
                 if timestamp.tzinfo is not None:
                     return timestamp.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 pass
     return None
 

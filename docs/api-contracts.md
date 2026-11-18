@@ -133,12 +133,18 @@ Success response: `200 OK`
 ```
 
 `content_type` is one of `article`, `podcast_episode`, `video`,
-`research_article`, or `book`. Only ordinary RSS articles have ingestion support
-in this milestone. `duration_minutes` is a known/source-provided positive integer
+`research_article`, or `book`. RSS supports articles and podcast episodes.
+Podcast episodes use `url` for the audio enclosure's external listening link
+and `summary` for the episode description, with no additional API fields.
+`duration_minutes` is a known/source-provided positive integer
 or `null` when unknown; it is separate from the runtime Candidate Action
 estimate and is not populated from summary length. PostgreSQL integer bounds
 apply (1 through 2,147,483,647). Source type is independent of item type:
-`ContentSource.source_type = rss` can later yield `content_type = podcast_episode`.
+`ContentSource.source_type = rss` can yield `content_type = podcast_episode`.
+Podcast iTunes durations are rounded up to positive whole minutes; unknown or
+malformed values remain null. Recommendation estimated duration and soft
+eligibility retain their existing behavior. Podcast feeds are registered through
+the existing `POST /content-sources` name/URL request.
 
 `summary` and `published_at` may be `null`. `content_source` is the owned source
 that produced the item and never exposes its owner. `status` is `active`, `completed`,

@@ -56,6 +56,39 @@ describe("RecommendationsPage", () => {
     expect(await screen.findByText(/A recommendation could not be loaded/)).toBeInTheDocument();
   });
 
+  it("presents a podcast recommendation and opens listening without completing it", async () => {
+    getNextRecommendation.mockResolvedValueOnce({ recommendation: {
+      ...recommendation, estimated_duration_minutes: 42,
+      content_item: { ...recommendation.content_item, content_type: "podcast_episode", title: "A useful episode", url: "https://example.com/audio.mp3" },
+    } });
+    const user = userEvent.setup();
+    render(<RecommendationsPage />);
+    await user.click(await screen.findByRole("button", { name: "Find my next thing" }));
+    expect(await screen.findByText("Podcast episode")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "A useful episode" })).toBeInTheDocument();
+    expect(screen.getByText("About 42 min")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "Listen externally" });
+    expect(link).toHaveAttribute("href", "https://example.com/audio.mp3");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    await user.click(link);
+    expect(applyContentItemAction).not.toHaveBeenCalled();
+  });
+
+  it.each(["snooze", "complete", "archive"] as const)("applies %s to a podcast through the existing action workflow", async (action) => {
+    getNextRecommendation.mockResolvedValueOnce({ recommendation: {
+      ...recommendation, content_item: { ...recommendation.content_item, content_type: "podcast_episode" },
+    } }).mockResolvedValueOnce({ recommendation: null });
+    applyContentItemAction.mockResolvedValueOnce({ content_item_state: {} });
+    const user = userEvent.setup();
+    render(<RecommendationsPage />);
+    await user.click(await screen.findByRole("button", { name: "Find my next thing" }));
+    await screen.findByText("Podcast episode");
+    await user.click(screen.getByRole("button", { name: new RegExp(`^${action}$`, "i") }));
+    expect(applyContentItemAction).toHaveBeenCalledWith("item-1", action, "event-1");
+    expect(await screen.findByText("No recommendation is available right now.")).toBeInTheDocument();
+  });
+
   it.each([
     ["read_content_item", "snooze"],
     ["read_content_item", "complete"],

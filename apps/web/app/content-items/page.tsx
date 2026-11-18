@@ -111,7 +111,7 @@ export default function ContentItemsPage() {
           <div>
             <p className="eyebrow">Next Right Thing</p>
             <h1>Content Items</h1>
-            <p className="lede">Browse the professional reading discovered from your active Content Sources.</p>
+            <p className="lede">Browse the professional content discovered from your active Content Sources.</p>
           </div>
           <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>
@@ -202,12 +202,14 @@ function ContentItemCard({ item }: { item: ContentItem }) {
       ) : null}
       {summary ? <p className="content-item-summary">{summary}</p> : null}
       <div className="content-item-meta">
+        {item.content_type === "podcast_episode" ? <span className="status-pill">Podcast episode</span> : null}
+        {item.content_type === "podcast_episode" ? <span>{item.duration_minutes === null ? "Duration unknown" : `${item.duration_minutes} min`}</span> : null}
         {item.published_at ? <span>Published {formatTimestamp(item.published_at)}</span> : null}
         <span>Discovered {formatTimestamp(item.discovered_at)}</span>
         {stateLabel ? <span className={`status-pill content-item-state state-${item.status}`}>{stateLabel}</span> : null}
       </div>
       <a className="content-item-link" href={item.url} target="_blank" rel="noopener noreferrer">
-        Open article
+        {item.content_type === "podcast_episode" ? "Listen externally" : "Open article"}
       </a>
     </li>
   );

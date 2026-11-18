@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+  <channel>
+    <title>Professional Podcast</title>
+    <link>https://example.com/podcast</link>
+    <description>Professional learning</description>
+    <item>
+      <guid isPermaLink="false">episode-1</guid>
+      <title>Professional learning episode</title>
+      <link>https://example.com/episodes/1</link>
+      <description>Episode description</description>
+      <pubDate>Wed, 18 Nov 2026 10:00:00 GMT</pubDate>
+      <itunes:duration>12:34</itunes:duration>
+      <enclosure url="https://example.com:bad/audio.mp3" type="audio/mpeg" length="1000"/>
+      <enclosure url="https://:443/audio.mp3" type="audio/mpeg" length="1000"/>
+      <enclosure url="https://example.com:65536/audio.mp3" type="audio/mpeg" length="1000"/>
+      <enclosure url="https://example.com/audio/1.mp3" type="audio/mpeg" length="1000"/>
+    </item>
+    <item>
+      <title>Audio-only episode</title>
+      <itunes:summary>Audio-only description</itunes:summary>
+      <enclosure url="https://example.com/audio/2.mp3" type="audio/mpeg" length="1000"/>
+    </item>
+    <item>
+      <guid isPermaLink="false">episode-3</guid>
+      <title>Episode with malformed metadata</title>
+      <pubDate>not a date</pubDate>
+      <itunes:duration>1:60</itunes:duration>
+      <enclosure url="https://example.com/audio/3.mp3" type="audio/mpeg" length="1000"/>
+    </item>
+    <item>
+      <title>Ordinary article</title>
+      <link>https://example.com/article</link>
+      <description>Article summary</description>
+    </item>
+    <item>
+      <guid isPermaLink="false">untitled</guid>
+      <enclosure url="https://example.com/audio/untitled.mp3" type="audio/mpeg" length="1000"/>
+    </item>
+  </channel>
+</rss>

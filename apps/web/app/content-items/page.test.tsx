@@ -86,6 +86,20 @@ describe("ContentItemsPage", () => {
     expect(screen.getByRole("link", { name: "Archived article" })).toBeInTheDocument();
   });
 
+  it.each([42, null])("distinguishes podcast episodes with duration %s and an external listening link", async (duration_minutes) => {
+    listContentItems.mockResolvedValue({ content_items: [item({
+      content_type: "podcast_episode", duration_minutes, title: "Professional podcast",
+      url: "https://example.com/audio.mp3", summary: "Episode <strong>description</strong>.",
+    })] });
+    render(<ContentItemsPage />);
+    expect(await screen.findByText("Podcast episode")).toBeInTheDocument();
+    expect(screen.getByText(duration_minutes === null ? "Duration unknown" : "42 min")).toBeInTheDocument();
+    expect(screen.getByText("Episode description .")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Listen externally" })).toHaveAttribute("href", "https://example.com/audio.mp3");
+    expect(screen.getByRole("link", { name: "Listen externally" })).toHaveAttribute("target", "_blank");
+    expect(screen.queryByRole("link", { name: "Open article" })).not.toBeInTheDocument();
+  });
+
   it("shows an empty state when no Content Items are available", async () => {
     listContentItems.mockResolvedValue({ content_items: [] });
     render(<ContentItemsPage />);

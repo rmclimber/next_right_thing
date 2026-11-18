@@ -273,7 +273,7 @@ export default function ContentSourcesPage() {
           <div>
             <p className="eyebrow">Next Right Thing</p>
             <h1>Content Sources</h1>
-            <p className="lede">Manage the professional feeds that bring relevant reading into your workspace.</p>
+            <p className="lede">Manage the professional feeds that bring articles and podcast episodes into your workspace.</p>
           </div>
           <AuthenticatedNavigation onSignOut={handleSignOut} />
         </div>
@@ -287,7 +287,7 @@ export default function ContentSourcesPage() {
             <form className="goal-form create-goal-form" onSubmit={handleCreateSource}>
               <div>
                 <h2>Add RSS Source</h2>
-                <p className="form-note">Add a professional feed for future recommendations.</p>
+                <p className="form-note">Add an article or podcast RSS feed URL for future recommendations. Episodes open externally for listening.</p>
               </div>
 
               <label>

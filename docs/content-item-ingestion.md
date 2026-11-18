@@ -35,13 +35,20 @@ integer bounds (1 through 2,147,483,647); booleans, fractions, numeric strings,
 zero, and negative values are rejected. Invalid values follow the existing
 permanent-message acknowledgement policy.
 
-RSS Fetch retains its existing RSS/Atom message format and omits
-`content_type` and `duration_minutes`. Writer supplies `article` and `null`
-through the defaults above. Keeping the producer payload unchanged lets Fetch
-and Writer deploy in either order during this milestone. Neither Fetch nor
-Writer infers type or known duration. `ContentSource.source_type` describes how/
-where content is obtained; `ContentItem.content_type` describes what the item
-is. These are independent, so a later RSS producer may emit podcast episodes.
+Ordinary RSS/Atom entries retain the existing payload, omitting `content_type`
+and `duration_minutes`; Writer supplies `article` and `null` through the defaults
+above. RSS Fetch classifies entries with a valid HTTP(S) `audio/*` enclosure as
+`podcast_episode` and supplies nullable `duration_minutes`. It uses the first
+usable audio enclosure as `url`, the episode description as `summary`, and
+GUID/Atom ID, then entry link, then audio URL as identity. iTunes seconds,
+`MM:SS`, and `HH:MM:SS` durations are rounded up to whole minutes; malformed,
+nonpositive, or out-of-range values are null. Missing or unreliable publication
+dates and descriptions are null; entries lacking required fields are skipped.
+Entries without a usable audio enclosure keep ordinary article behavior.
+Writer does no type inference. `ContentSource.source_type` describes how/where
+content is obtained; `ContentItem.content_type` describes what the item is.
+Both ordinary and podcast RSS feeds use the existing RSS Content Source API.
+See `docs/features/podcast-support/spec.md` for metadata and fallback decisions.
 Known duration is durable source metadata; the summary-based Candidate Action
 estimate is ephemeral and is never written back into Content Items.
 
@@ -59,11 +66,13 @@ backfills all existing items to non-null `article`, leaves duration unknown, and
 retains a database `article` default so the old Writer remains compatible. Deploy
 the frontend accepting both action names before enabling the new recommendation
 response using a separate frontend compatibility release. Already-open browser
-tabs must refresh to load that client. Fetch retains the existing payload, so
-Fetch and Writer need no relative deployment ordering in this milestone. Future
-producers that explicitly send the new fields must follow deployment of the
-extended Writer, since old Writer versions reject unknown message fields. The
-updated Writer accepts old queued messages throughout this rollout. No
+tabs must refresh to load that client. During the original shared-contract
+rollout, Fetch retained the article payload and needed no ordering relative to
+Writer. Podcast Fetch explicitly sends type/duration and must follow deployment
+of the extended Writer, since old Writers reject unknown fields. The shared
+contract is already deployed; podcast support needs no further migration or
+infrastructure change. The updated Writer accepts old queued messages
+throughout this rollout. No
 Recommendation Event history is rewritten.
 
 Malformed messages and ownership-invalid messages are logged safely and
