@@ -16,7 +16,9 @@ Given an older normalized message, when Writer handles it, then it stores an
 article with unknown duration. Given an explicit valid type and duration, then
 both persist. Given invalid values, then the message is acknowledged without
 insertion. Given a duplicate, then no row or metadata is changed. Given ordinary
-RSS/Atom entries, then Fetch emits article/null without altering health behavior.
+RSS/Atom entries, then Fetch retains the existing payload without type/duration
+fields and without altering health behavior; Writer supplies article/null.
+Fetch payloads remain compatible with both old and updated Writer versions.
 
 ## Candidates and Ranking
 

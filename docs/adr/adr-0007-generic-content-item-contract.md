@@ -21,9 +21,10 @@ existing Recommendation Event duration constraint; unknown duration stays null.
 No speculative type-specific metadata or content-type framework is introduced.
 
 Content Source `source_type` is the acquisition mechanism/provider, independent
-of Content Item `content_type`. RSS continues to emit only `article` and null
-duration. Writer accepts omitted type/duration as `article`/null for older
-messages, validates explicit values, and retains insert-only idempotency.
+of Content Item `content_type`. RSS retains its existing payload, omitting type
+and duration. Writer supplies `article`/null for omitted fields, validates
+explicit values, and retains insert-only idempotency. The unchanged RSS payload
+allows Fetch and Writer to deploy in either order in this milestone.
 
 Candidate Actions remain ephemeral and use `consume_content_item` for primary
 content consumption. They preserve the Content Item type and resolve runtime
@@ -42,10 +43,12 @@ both action names. Ordinary article presentation and controls remain unchanged.
   suppression, ownership, ordering, dispositions, and source health are unchanged.
 - There are no new dependencies, infrastructure resources, ingestion pipelines,
   embedding calls, or type-specific presentation rules.
-- Migrate the database before updated readers/writers. Deploy frontend support
-  for both action names before the new recommendation backend. Deploy Writer
-  before the extended RSS Fetch producer; older Writer versions reject the new
-  message fields. Updated Writer accepts older queued messages.
+- Migrate the database before updated readers/writers. Deploy a separate
+  frontend compatibility release accepting both action names before the new
+  recommendation backend; already-open tabs need a refresh. Fetch keeps its
+  current payload, so this milestone requires no Fetch/Writer deployment order.
+  Future producers that explicitly send new fields must follow the extended
+  Writer deployment. Updated Writer accepts older queued messages.
 - Podcast Lane A can classify/ingest `podcast_episode` and supply known duration
   using the existing source and writer contracts. Metadata and presentation are
   owned by that lane; no schema redesign is required for basic podcast support.

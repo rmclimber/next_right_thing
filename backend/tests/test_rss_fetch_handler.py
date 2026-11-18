@@ -27,7 +27,7 @@ class RssFetchHandlerTests(unittest.TestCase):
             response = rss_handler.handler({"Records": [record(JOB)]}, None)
         self.assertEqual(response, {"batchItemFailures": []})
         record_health.assert_called_once_with(JOB, "healthy", None)
-        self.assertEqual(json.loads(sqs.send_message.call_args.kwargs["MessageBody"]), {"user_id": "user-id", "content_source_id": "source-id", "external_id": "rss-guid", "title": "Example", "url": "https://example.com/post", "summary": "Summary", "published_at": "2026-09-15T12:00:00Z", "discovered_at": "2026-09-16T12:34:56Z", "content_type": "article", "duration_minutes": None})
+        self.assertEqual(json.loads(sqs.send_message.call_args.kwargs["MessageBody"]), {"user_id": "user-id", "content_source_id": "source-id", "external_id": "rss-guid", "title": "Example", "url": "https://example.com/post", "summary": "Summary", "published_at": "2026-09-15T12:00:00Z", "discovered_at": "2026-09-16T12:34:56Z"})
 
     def test_atom_entry_uses_atom_id_and_allows_missing_summary_and_timestamp(self):
         entries = [{"id": "atom-id", "title": "Atom example", "link": "https://example.com/atom"}]
@@ -38,6 +38,8 @@ class RssFetchHandlerTests(unittest.TestCase):
         self.assertEqual(body["external_id"], "atom-id")
         self.assertIsNone(body["summary"])
         self.assertIsNone(body["published_at"])
+        self.assertNotIn("content_type", body)
+        self.assertNotIn("duration_minutes", body)
         record_health.assert_called_once_with(JOB, "healthy", None)
 
     def test_valid_zero_entry_feed_is_healthy(self):
