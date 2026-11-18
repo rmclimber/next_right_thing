@@ -100,3 +100,13 @@ The recommendation algorithm itself is not evaluated beyond these guarantees.
 - Learning goal optimization
 - Multi-device synchronization
 - Performance under production-scale load
+
+## Action Name Rollout Compatibility
+
+Given an article recommendation with either `read_content_item` or
+`consume_content_item`, and the existing payload without `content_type`,
+when the frontend displays it, then the article details and Open link render.
+When Complete, Snooze, or Archive is selected for either action name, then the
+same disposition request is saved before loading the next recommendation.
+The backend response, database schema, and ingestion behavior do not change in
+this frontend compatibility release.

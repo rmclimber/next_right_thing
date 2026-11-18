@@ -18,7 +18,7 @@ export type RecommendationContentItem = {
 
 export type Recommendation = {
   recommendation_event_id: string;
-  action_type: "read_content_item";
+  action_type: "consume_content_item" | "read_content_item";
   content_item: RecommendationContentItem;
   estimated_duration_minutes: number;
   reason: string;
