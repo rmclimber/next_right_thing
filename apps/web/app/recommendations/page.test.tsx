@@ -56,9 +56,16 @@ describe("RecommendationsPage", () => {
     expect(await screen.findByText(/A recommendation could not be loaded/)).toBeInTheDocument();
   });
 
-  it.each(["snooze", "complete", "archive"] as const)("applies %s and only then loads the next recommendation", async (action) => {
+  it.each([
+    ["read_content_item", "snooze"],
+    ["read_content_item", "complete"],
+    ["read_content_item", "archive"],
+    ["consume_content_item", "snooze"],
+    ["consume_content_item", "complete"],
+    ["consume_content_item", "archive"],
+  ] as const)("applies %s / %s and only then loads the next recommendation", async (action_type, action) => {
     const actionRequest = deferred<{ content_item_state: unknown }>();
-    getNextRecommendation.mockResolvedValueOnce({ recommendation }).mockResolvedValueOnce({ recommendation: null });
+    getNextRecommendation.mockResolvedValueOnce({ recommendation: { ...recommendation, action_type } }).mockResolvedValueOnce({ recommendation: null });
     applyContentItemAction.mockReturnValueOnce(actionRequest.promise);
     const user = userEvent.setup();
     render(<RecommendationsPage />);

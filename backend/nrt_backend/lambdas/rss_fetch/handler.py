@@ -123,8 +123,6 @@ def _normalize_entry(job, entry, discovered_at):
         "summary": _entry_string(entry, "summary"),
         "published_at": _published_at(entry),
         "discovered_at": discovered_at,
-        "content_type": "article",
-        "duration_minutes": None,
     }
 
 

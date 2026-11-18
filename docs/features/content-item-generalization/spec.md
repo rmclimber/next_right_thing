@@ -14,9 +14,10 @@ see ADR-0007 and the durable domain, architecture, API, and ingestion contracts.
 - `duration_minutes` stores known/source-provided positive consumption minutes
   or null, separate from runtime estimates. Writer rejects values outside the
   PostgreSQL integer range and rejects booleans, fractions, and strings.
-- Ordinary RSS/Atom entries explicitly emit article/null. Writer also accepts
-  older messages without these fields, defaulting to article/null. Null type is
-  invalid. Duplicate discovery never overwrites existing metadata.
+- Ordinary RSS/Atom entries retain the existing payload and omit type/duration.
+  Writer defaults omitted fields to article/null, keeping both Writer versions
+  compatible with Fetch. Explicit null type is invalid. Duplicate discovery
+  never overwrites existing metadata.
 - Candidate Actions are ephemeral `consume_content_item` actions, carry type,
   and prefer known duration over the unchanged deterministic summary estimate.
 - Recommendation Events remain durable. Legacy `read_content_item` values are
@@ -38,6 +39,7 @@ presentation. Lane B owns semantic relevance/scoring infrastructure and future
 embedding use. Both can use the shared type, duration, and consumption-action
 contract immediately. There are no unresolved shared-contract decisions.
 
-Deployment sequencing is defined in `docs/content-item-ingestion.md`; apply
-migration first, update the frontend before the recommendation backend, and
-update Writer before RSS Fetch.
+Deployment sequencing is defined in `docs/content-item-ingestion.md`; deploy a
+separate frontend compatibility release before the recommendation backend and
+apply the migration before updated backend readers/writers. RSS Fetch retains
+its existing payload, so Fetch and Writer can deploy in either order.

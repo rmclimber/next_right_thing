@@ -7,6 +7,8 @@ RDS Data API to query active RSS Content Sources and sends one job per source to
 `nrt-<environment>-rss-fetch-jobs`. The non-VPC RSS Fetch Lambda retrieves and
 normalizes RSS/Atom entries, then sends them to this queue.
 
+Extended message example (producers may omit the two new optional fields):
+
 ```json
 {
   "user_id": "cognito-sub",
@@ -33,8 +35,10 @@ integer bounds (1 through 2,147,483,647); booleans, fractions, numeric strings,
 zero, and negative values are rejected. Invalid values follow the existing
 permanent-message acknowledgement policy.
 
-RSS Fetch explicitly emits `content_type = article` and
-`duration_minutes = null` for every current RSS/Atom entry. Neither Fetch nor
+RSS Fetch retains its existing RSS/Atom message format and omits
+`content_type` and `duration_minutes`. Writer supplies `article` and `null`
+through the defaults above. Keeping the producer payload unchanged lets Fetch
+and Writer deploy in either order during this milestone. Neither Fetch nor
 Writer infers type or known duration. `ContentSource.source_type` describes how/
 where content is obtained; `ContentItem.content_type` describes what the item
 is. These are independent, so a later RSS producer may emit podcast episodes.
@@ -54,9 +58,13 @@ Deploy migration `20261116_0008` before updated writers or API readers. It
 backfills all existing items to non-null `article`, leaves duration unknown, and
 retains a database `article` default so the old Writer remains compatible. Deploy
 the frontend accepting both action names before enabling the new recommendation
-response. Deploy Writer before the extended RSS Fetch producer, since the old
-Writer rejects unknown message fields. The updated Writer accepts old queued
-messages throughout this rollout. No Recommendation Event history is rewritten.
+response using a separate frontend compatibility release. Already-open browser
+tabs must refresh to load that client. Fetch retains the existing payload, so
+Fetch and Writer need no relative deployment ordering in this milestone. Future
+producers that explicitly send the new fields must follow deployment of the
+extended Writer, since old Writer versions reject unknown message fields. The
+updated Writer accepts old queued messages throughout this rollout. No
+Recommendation Event history is rewritten.
 
 Malformed messages and ownership-invalid messages are logged safely and
 acknowledged. They do not currently have a dead-letter queue. Transient database

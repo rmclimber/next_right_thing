@@ -227,6 +227,22 @@ their existing GitHub Environment boundaries.
 CloudFormation manages Aurora infrastructure. PostgreSQL application schema is
 managed by Alembic migrations under `backend/migrations`.
 
+### Content Item Contract Rollout
+
+Before merging the generic Content Item backend release, deploy a separate
+frontend compatibility PR that accepts both `read_content_item` and
+`consume_content_item` with the existing recommendation payload. Confirm that
+deployment completes before releasing the backend; the normal workflow updates
+the API before uploading frontend assets. Already-open browser tabs must refresh
+to load the compatibility client.
+
+The feature release uses the existing migration step before updated API readers
+or Writer. RSS Fetch keeps its existing message format and omits type/duration;
+Writer defaults these fields to `article`/`null`. Fetch and Writer can therefore
+update in either order without workflow restructuring. A later producer that
+explicitly sends the new fields requires the extended Writer to be deployed
+first. See `docs/content-item-ingestion.md` for the normalized message contract.
+
 ---
 
 ## Adding a New Stack
