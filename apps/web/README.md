@@ -34,7 +34,7 @@ pnpm dev
 
 Then open `http://localhost:3000`, sign in, and verify that the dashboard
 opens the Next Right Thing recommendation experience. Select an available-time
-preset or enter 1–240 custom minutes, then request a recommendation from
+preset or enter 1â€“240 custom minutes, then request a recommendation from
 `GET /recommendations/next`. The authenticated navigation also links to Goals,
 Content Sources, and Content Items.
 
@@ -46,3 +46,15 @@ boundaries are mocked, so they stay fast and make no network calls.
 
 Use `pnpm --filter @nrt/web test` for watch mode, or
 `pnpm --filter @nrt/web test:run` for the CI-friendly one-shot run.
+
+## Recommendation action compatibility
+
+The recommendation card accepts both `read_content_item` and
+`consume_content_item` with the existing payload, including responses without
+`content_type`. Both names use the same article presentation and
+Open/Complete/Snooze/Archive controls. This frontend release changes no backend
+response, database schema, ingestion behavior, or configuration.
+
+Deploy this compatibility frontend before a backend starts returning
+`consume_content_item`. Confirm the deployment finishes before merging the
+backend release. Already-open browser tabs must refresh to load the new client.
