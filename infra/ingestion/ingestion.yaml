@@ -62,6 +62,30 @@ Parameters:
     Type: String
     Description: S3 key for the RSS Fetch deployment package.
 
+  EmbeddingRefreshFunctionCodeS3Bucket:
+    Type: String
+    Description: S3 bucket containing the embedding refresh deployment package.
+
+  EmbeddingRefreshFunctionCodeS3Key:
+    Type: String
+    Description: S3 key for the embedding refresh deployment package.
+
+  EnableEmbeddingRefresh:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Enable the two-hour automatic embedding refresh schedule.
+
+  EmbeddingRefreshMaxEmbeddings:
+    Type: Number
+    Default: 100
+    MinValue: 1
+    MaxValue: 1000
+    Description: Maximum new or stale subjects sent to Bedrock per invocation.
+
+Conditions:
+  EmbeddingRefreshEnabled: !Equals [!Ref EnableEmbeddingRefresh, 'true']
+
 Resources:
   NormalizedContentItemsQueue:
     Type: AWS::SQS::Queue
@@ -314,7 +338,139 @@ Resources:
       ScalingConfig:
         MaximumConcurrency: 2
 
+  EmbeddingRefreshLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${ProjectName}-${StackSuffix}-embedding-refresh"
+      RetentionInDays: 14
+
+  EmbeddingRefreshFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EmbeddingRefresh
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !GetAtt EmbeddingRefreshLogGroup.Arn
+              - Effect: Allow
+                Action: rds-data:ExecuteStatement
+                Resource: !Ref DatabaseClusterArn
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref DatabaseSecretArn
+              - Effect: Allow
+                Action: bedrock:InvokeModel
+                Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0"
+
+  EmbeddingRefreshFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-${StackSuffix}-embedding-refresh"
+      Runtime: python3.12
+      Handler: nrt_backend.lambdas.embedding_refresh.handler.handler
+      MemorySize: 512
+      Timeout: 300
+      ReservedConcurrentExecutions: 1
+      Role: !GetAtt EmbeddingRefreshFunctionRole.Arn
+      LoggingConfig:
+        LogFormat: JSON
+        ApplicationLogLevel: INFO
+        SystemLogLevel: WARN
+      Environment:
+        Variables:
+          DATABASE_CLUSTER_ARN: !Ref DatabaseClusterArn
+          DB_NAME: !Ref DatabaseName
+          DB_SECRET_ARN: !Ref DatabaseSecretArn
+          EMBEDDING_REFRESH_MAX_EMBEDDINGS: !Ref EmbeddingRefreshMaxEmbeddings
+      Code:
+        S3Bucket: !Ref EmbeddingRefreshFunctionCodeS3Bucket
+        S3Key: !Ref EmbeddingRefreshFunctionCodeS3Key
+
+  EmbeddingRefreshRetryConfig:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName: !Ref EmbeddingRefreshFunction
+      Qualifier: $LATEST
+      MaximumEventAgeInSeconds: 3600
+      MaximumRetryAttempts: 2
+
+  EmbeddingRefreshScheduleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:scheduler:${AWS::Region}:${AWS::AccountId}:schedule-group/default"
+      Policies:
+        - PolicyName: InvokeEmbeddingRefresh
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt EmbeddingRefreshFunction.Arn
+
+  EmbeddingRefreshSchedule:
+    Type: AWS::Scheduler::Schedule
+    DependsOn: EmbeddingRefreshRetryConfig
+    Properties:
+      Name: !Sub "${ProjectName}-${StackSuffix}-embedding-refresh"
+      Description: Refresh missing or stale Content Item and active Goal embeddings.
+      ScheduleExpression: rate(2 hours)
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      State: !If [EmbeddingRefreshEnabled, ENABLED, DISABLED]
+      Target:
+        Arn: !GetAtt EmbeddingRefreshFunction.Arn
+        RoleArn: !GetAtt EmbeddingRefreshScheduleRole.Arn
+        Input: '{}'
+        RetryPolicy:
+          MaximumEventAgeInSeconds: 3600
+          MaximumRetryAttempts: 2
+
+  EmbeddingRefreshErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Embedding refresh failed or exceeded its bounded sweep budget; inspect the summary log.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref EmbeddingRefreshFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
 Outputs:
+  EmbeddingRefreshFunctionName:
+    Description: Non-VPC Lambda that refreshes semantic embedding caches.
+    Value: !Ref EmbeddingRefreshFunction
+
+  EmbeddingRefreshScheduleName:
+    Description: Two-hour embedding refresh schedule; disabling it leaves manual invocation available.
+    Value: !Ref EmbeddingRefreshSchedule
+
   NormalizedContentItemsQueueUrl:
     Description: URL for normalized Content Item messages.
     Value: !Ref NormalizedContentItemsQueue

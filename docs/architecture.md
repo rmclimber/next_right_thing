@@ -7,7 +7,8 @@ API:
 - Lambda + API Gateway
 
 Background jobs:
-- ECS/Fargate
+- Lambda (RSS ingestion and scheduled embedding refresh)
+- ECS/Fargate (future long-running jobs)
 
 DB:
 - Aurora PostgreSQL
@@ -103,6 +104,20 @@ archived, or actively snoozed until a future time. This eligibility filtering is
 performed in the bounded Aurora query; expired snoozes become eligible without a
 background job.
 
+Semantic relevance is an opt-in reranking layer (ADR-0008). The default
+`baseline` mode retains the deterministic v1 ranking. `shadow` compares cached
+semantic and baseline rankings while serving baseline; `semantic` replaces only
+the Goal relevance component with maximum nonnegative cosine similarity to an
+active Goal. Eligibility, the 50-item bound, diversity suppression, recency,
+duration fit, and tie-breaking are unchanged. Incomplete, stale, invalid, or
+unavailable embeddings fall back to the entire baseline ranking. Requests never
+invoke an embedding provider. Derived, model/version/text-hashed vectors live in
+auxiliary PostgreSQL JSONB tables and are refreshed by explicit batch tooling
+using Titan Text Embeddings V2 (256 dimensions). Exact similarity over this small
+pool requires no database extension. A non-VPC embedding-refresh Lambda uses
+RDS Data API and Bedrock every two hours (ADR-0009). It reuses these caches and
+the same text/hash/provider logic; see `docs/features/semantic-relevance/operations.md`.
+
 Does not:
 
 - Render UI
@@ -118,7 +133,7 @@ Responsibilities:
 - Parse content
 - Extract metadata
 - Update search indexes
-- Generate embeddings (future)
+- Generate embeddings (two-hour scheduled Lambda and explicit operator batch)
 
 RSS ingestion uses a private-source/public-fetch/private-write pipeline:
 
@@ -159,6 +174,20 @@ without new resources or migrations. See ADR-0007 for the shared contract and
 `docs/features/podcast-support/spec.md` for podcast behavior and rollout.
 
 ---
+
+### Automatic Embedding Refresh
+
+Automatic embedding refresh is another targeted non-VPC Data API exception. A
+dedicated Lambda discovers users from existing Content Items and active Goals,
+scans bounded pages, and skips valid current vectors. It uses regional Titan V2
+and writes only auxiliary embedding caches through ownership-scoped SQL. Long
+source text is transferred in bounded chunks without changing the embedding
+representation. Transient retries, a per-invocation generation budget, and a
+deadline reserve bound work; failures or incomplete sweeps emit a summary and
+fail the invocation, preserving successful writes for retry. The ingestion stack
+defines its EventBridge Scheduler schedule, scoped roles, 14-day log group,
+asynchronous retry configuration, and Errors alarm. No new VPC endpoint, NAT,
+queue, or schema is required. Application APIs and Writer continue using psycopg.
 
 ### Database
 

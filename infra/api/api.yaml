@@ -87,6 +87,12 @@ Parameters:
     Type: String
     Description: S3 key for the RecommendationsFunction deployment package.
 
+  RecommendationRankingMode:
+    Type: String
+    Default: baseline
+    AllowedValues: [baseline, shadow, semantic]
+    Description: Opt-in semantic relevance mode; baseline does not access embeddings.
+
 Resources:
   MeFunctionRole:
     Type: AWS::IAM::Role
@@ -389,6 +395,7 @@ Resources:
         SubnetIds: !Ref PrivateSubnetIds
       Environment:
         Variables:
+          RECOMMENDATION_RANKING_MODE: !Ref RecommendationRankingMode
           DB_HOST: !Ref DatabaseEndpoint
           DB_PORT: !Ref DatabasePort
           DB_NAME: !Ref DatabaseName

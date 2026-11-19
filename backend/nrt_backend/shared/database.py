@@ -3,7 +3,6 @@ import logging
 import os
 from importlib import import_module
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -55,7 +54,14 @@ _database_config = database_config
 _database_credentials = database_credentials
 
 
-def connect():
+def connect(*, connect_timeout=30, statement_timeout_ms=None):
+    if type(connect_timeout) is not int or connect_timeout <= 0:
+        raise ValueError("connect_timeout must be a positive integer")
+    options = {}
+    if statement_timeout_ms is not None:
+        if type(statement_timeout_ms) is not int or statement_timeout_ms <= 0:
+            raise ValueError("statement_timeout_ms must be a positive integer")
+        options["options"] = f"-c statement_timeout={statement_timeout_ms}"
     config = database_config()
     credentials = database_credentials(config["secret_arn"])
     psycopg = import_module("psycopg")
@@ -67,7 +73,8 @@ def connect():
         dbname=config["dbname"],
         user=credentials["user"],
         password=credentials["password"],
-        connect_timeout=30,
+        connect_timeout=connect_timeout,
+        **options,
     )
 
     logger.warning("PostgreSQL connection established")

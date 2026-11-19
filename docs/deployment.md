@@ -227,6 +227,31 @@ their existing GitHub Environment boundaries.
 CloudFormation manages Aurora infrastructure. PostgreSQL application schema is
 managed by Alembic migrations under `backend/migrations`.
 
+### Automatic Embedding Refresh
+
+The ingestion stack also defines a dedicated non-VPC embedding-refresh Lambda
+(ADR-0009). EventBridge Scheduler invokes it every two hours. It uses the existing
+Aurora Data API, database secret, and auxiliary embedding caches, plus regional
+Bedrock Titan V2. The SHA-keyed artifact is
+`lambda/embedding-refresh/<Git SHA>.zip`; migrations run before ingestion deploys.
+No new VPC endpoint, NAT, queue, or schema migration is needed for the worker.
+
+GitHub Environment variable `ENABLE_EMBEDDING_REFRESH` defaults to `true` and
+maps to ingestion parameter `EnableEmbeddingRefresh`; `false` disables only the
+schedule. `EMBEDDING_REFRESH_MAX_EMBEDDINGS` defaults to `100` and maps to
+`EmbeddingRefreshMaxEmbeddings` (1..1000 per invocation). These are independent of
+the API's `RECOMMENDATION_RANKING_MODE`, which still defaults to `baseline`.
+The existing `ENABLE_DATABASE_BACKEND` gate controls packaging/deployment along
+with the other ingestion resources.
+
+The worker's scoped role, scheduler role, 14-day log group, bounded asynchronous
+retries, and Errors alarm are defined in `infra/ingestion/ingestion.yaml`.
+No notification target is configured. Confirm regional model permissions and
+summary/error logs during an approved rollout. See
+`docs/features/semantic-relevance/operations.md` for budgets, retry behavior,
+cost considerations, and local validation. No deployment is implied by adding
+these definitions.
+
 ### Content Item Contract Rollout
 
 Before merging the generic Content Item backend release, deploy a separate

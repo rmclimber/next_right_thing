@@ -1,0 +1,54 @@
+{
+  "synthetic": true,
+  "cases": [
+    {
+      "name": "Related vocabulary outranks incidental lexical overlap",
+      "now": "2026-11-18T12:00:00+00:00",
+      "available_minutes": 20,
+      "goals": [{"id": "goal-a", "title": "Learn Bayesian statistics", "embedding": [1, 0]}],
+      "content_items": [
+        {"id": "a", "title": "Learn statistics: course administration", "summary": "Registration dates and room assignments.", "embedding": [0, 1]},
+        {"id": "b", "title": "Posterior inference with conjugate priors", "summary": "Updating uncertainty from evidence.", "embedding": [1, 0]},
+        {"id": "c", "title": "Office equipment purchasing", "embedding": [-1, 0]}
+      ],
+      "labels": {"a": 0, "b": 2, "c": 0}
+    },
+    {
+      "name": "Best match across multiple active Goals",
+      "now": "2026-11-18T12:00:00+00:00",
+      "available_minutes": 15,
+      "goals": [
+        {"id": "goal-a", "title": "Clinical supervision", "embedding": [1, 0]},
+        {"id": "goal-b", "title": "California licensing rules", "embedding": [0, 1]}
+      ],
+      "content_items": [
+        {"id": "a", "title": "Clinical office decoration", "embedding": [-1, 0]},
+        {"id": "b", "title": "New state continuing education requirements", "embedding": [0, 1]},
+        {"id": "c", "title": "Reflective practice for early career therapists", "embedding": [0.8, 0.2]}
+      ],
+      "labels": {"a": 0, "b": 2, "c": 1}
+    },
+    {
+      "name": "Missing embedding preserves baseline for entire pool",
+      "now": "2026-11-18T12:00:00+00:00",
+      "available_minutes": 20,
+      "goals": [{"id": "goal-a", "title": "Learn Bayesian statistics", "embedding": [1, 0]}],
+      "content_items": [
+        {"id": "a", "title": "Bayesian statistics introduction", "embedding": [1, 0]},
+        {"id": "b", "title": "Other content"}
+      ],
+      "labels": {"a": 2, "b": 0}
+    },
+    {
+      "name": "Long duration remains soft in semantic mode",
+      "now": "2026-11-18T12:00:00+00:00",
+      "available_minutes": 5,
+      "goals": [{"id": "goal-a", "title": "Probabilistic inference", "embedding": [1, 0]}],
+      "content_items": [
+        {"id": "a", "title": "Cafeteria menu", "duration_minutes": 5, "embedding": [0, 1]},
+        {"id": "b", "title": "Reasoning under uncertainty", "duration_minutes": 40, "embedding": [1, 0]}
+      ],
+      "labels": {"a": 0, "b": 2}
+    }
+  ]
+}
