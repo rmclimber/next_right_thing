@@ -70,7 +70,8 @@ or compute-intensive requirement.
 Provision per enabled database environment, through CloudFormation:
 
 1. One Python 3.12 embedding-refresh Lambda outside the VPC, initially 512 MB,
-   five-minute timeout, reserved concurrency one; no provisioned concurrency.
+   five-minute timeout; shared unreserved concurrency by default, optional reserved
+   concurrency one when account headroom allows; no provisioned concurrency.
 2. One Lambda execution role: logging, `rds-data:ExecuteStatement` on the existing
    cluster, `secretsmanager:GetSecretValue` on its existing managed secret, and
    `bedrock:InvokeModel` on the regional Titan V2 model ARN. No new secret.
@@ -160,6 +161,22 @@ frequency. Two independent two-hour schedules do not automatically share one
 database wake period.
 
 ## Implementation and deployment boundary
+
+### 2026-11-19 deployment correction
+
+User-provided `ingestion-dev` events show `EmbeddingRefreshFunction` creation
+failed because reserving one execution would reduce the account below its
+required minimum of ten unreserved executions. The stack completed rollback.
+Make reservation optional with `ReserveEmbeddingRefreshConcurrency=false` by
+default, passed from `RESERVE_EMBEDDING_REFRESH_CONCURRENCY` in the deployment
+workflow. This omits the Lambda reservation; it does not set it to zero.
+
+No new architecture/resource is required: retain the existing schedule, cache
+idempotency, per-invocation budgets, and retries. The default does not guarantee
+capacity or serialize duplicate/manual invocations, so overlapping workers can
+repeat inference. A strict cap of one remains opt-in after quota verification.
+Changing account quota or adding a distributed lock remains a separate choice.
+The correction is local and tested; no quota operation or redeployment was run.
 
 The user approved this design and the two-hour cadence on 2026-11-18. The Data
 API adapter, scheduled handler, infrastructure definitions, and deployment artifact

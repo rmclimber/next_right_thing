@@ -30,6 +30,7 @@ jobs:
         RECOMMENDATION_RANKING_MODE: ${{ vars.RECOMMENDATION_RANKING_MODE || 'baseline' }}
         ENABLE_EMBEDDING_REFRESH: ${{ vars.ENABLE_EMBEDDING_REFRESH || 'true' }}
         EMBEDDING_REFRESH_MAX_EMBEDDINGS: ${{ vars.EMBEDDING_REFRESH_MAX_EMBEDDINGS || '100' }}
+        RESERVE_EMBEDDING_REFRESH_CONCURRENCY: ${{ vars.RESERVE_EMBEDDING_REFRESH_CONCURRENCY || 'false' }}
 
     steps:
       - name: Checkout
@@ -501,7 +502,8 @@ jobs:
               EmbeddingRefreshFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
               EmbeddingRefreshFunctionCodeS3Key="${EMBEDDING_REFRESH_ARTIFACT_KEY}" \
               EnableEmbeddingRefresh="${ENABLE_EMBEDDING_REFRESH}" \
-              EmbeddingRefreshMaxEmbeddings="${EMBEDDING_REFRESH_MAX_EMBEDDINGS}"
+              EmbeddingRefreshMaxEmbeddings="${EMBEDDING_REFRESH_MAX_EMBEDDINGS}" \
+              ReserveEmbeddingRefreshConcurrency="${RESERVE_EMBEDDING_REFRESH_CONCURRENCY}"
 
       - name: Deploy API Stack
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}

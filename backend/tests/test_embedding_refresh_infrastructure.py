@@ -35,10 +35,22 @@ class EmbeddingRefreshInfrastructureTests(unittest.TestCase):
         worker = self.resources["EmbeddingRefreshFunction"]["Properties"]
         self.assertNotIn("VpcConfig", worker)
         self.assertNotIn("ProvisionedConcurrencyConfig", worker)
-        self.assertEqual((worker["MemorySize"], worker["Timeout"], worker["ReservedConcurrentExecutions"]), (512, 300, 1))
+        self.assertEqual((worker["MemorySize"], worker["Timeout"]), (512, 300))
         self.assertEqual(worker["Environment"]["Variables"]["DATABASE_CLUSTER_ARN"], {"Ref": "DatabaseClusterArn"})
         for resource in self.resources.values():
             self.assertNotIn(resource["Type"], {"AWS::EC2::NatGateway", "AWS::EC2::VPCEndpoint", "AWS::StepFunctions::StateMachine"})
+
+    def test_default_does_not_reserve_account_capacity_and_opt_in_caps_at_one(self):
+        parameter = self.template["Parameters"]["ReserveEmbeddingRefreshConcurrency"]
+        self.assertEqual(parameter["Default"], "false")
+        condition = self.template["Conditions"]["EmbeddingRefreshConcurrencyReserved"]
+        self.assertEqual(condition, {"Equals": [{"Ref": "ReserveEmbeddingRefreshConcurrency"}, "true"]})
+        reservation = self.resources["EmbeddingRefreshFunction"]["Properties"]["ReservedConcurrentExecutions"]
+        self.assertEqual(reservation["If"][0], "EmbeddingRefreshConcurrencyReserved")
+        for enabled, expected in (("false", {"Ref": "AWS::NoValue"}), ("true", 1)):
+            with self.subTest(enabled=enabled):
+                selected = reservation["If"][1 if enabled == condition["Equals"][1] else 2]
+                self.assertEqual(selected, expected)
 
     def test_schedule_is_two_hour_disableable_and_targets_only_the_worker(self):
         schedule = self.resources["EmbeddingRefreshSchedule"]["Properties"]
@@ -84,6 +96,8 @@ class EmbeddingRefreshInfrastructureTests(unittest.TestCase):
         self.assertIn('EmbeddingRefreshFunctionCodeS3Key="${EMBEDDING_REFRESH_ARTIFACT_KEY}"', deploy)
         self.assertIn('EnableEmbeddingRefresh="${ENABLE_EMBEDDING_REFRESH}"', deploy)
         self.assertIn("ENABLE_EMBEDDING_REFRESH", job["env"])
+        self.assertEqual(job["env"]["RESERVE_EMBEDDING_REFRESH_CONCURRENCY"], "${{ vars.RESERVE_EMBEDDING_REFRESH_CONCURRENCY || 'false' }}")
+        self.assertIn('ReserveEmbeddingRefreshConcurrency="${RESERVE_EMBEDDING_REFRESH_CONCURRENCY}"', deploy)
         names = [step["name"] for step in job["steps"]]
         self.assertLess(names.index("Build Embedding Refresh Lambda Artifact"), names.index("Deploy Ingestion Stack"))
         self.assertLess(names.index("Run Database Migrations"), names.index("Deploy Ingestion Stack"))

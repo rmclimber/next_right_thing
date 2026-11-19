@@ -149,6 +149,7 @@ GitHub Environment controls passed through `deploy-stack.yml`:
 | --- | --- | --- |
 | `ENABLE_EMBEDDING_REFRESH` | `true` | Ingestion `EnableEmbeddingRefresh`; enables/disables the schedule only. |
 | `EMBEDDING_REFRESH_MAX_EMBEDDINGS` | `100` | Ingestion `EmbeddingRefreshMaxEmbeddings`; 1..1000 subjects requiring inference per invocation. |
+| `RESERVE_EMBEDDING_REFRESH_CONCURRENCY` | `false` | Ingestion `ReserveEmbeddingRefreshConcurrency`; opt into a strict one-execution cap only with account quota headroom. |
 | `RECOMMENDATION_RANKING_MODE` | `baseline` | Independent ranking control; refresh can generate caches while serving baseline. |
 
 The deployment's existing `ENABLE_DATABASE_BACKEND` gate controls the entire
@@ -174,10 +175,25 @@ subjects requiring inference, so retries can increase actual paid model calls.
 Empty normalized text fails before the inference budget or provider is used.
 The Data API client uses a 60-second read timeout, exceeding its 45-second SQL
 timeout as AWS recommends; the Bedrock client retains its 10-second read timeout.
-The Lambda has 512 MB, a five-minute timeout, concurrency one, and stops new
+The Lambda has 512 MB, a five-minute timeout, and stops new
 external work with less than 90 seconds remaining. No DB transaction spans
 provider inference. Individual failures do not prevent later subjects from
 being attempted; successful cache writes are retained.
+
+By default the worker uses the account's shared unreserved concurrency pool;
+CloudFormation omits `ReservedConcurrentExecutions` rather than setting it to
+zero (zero would throttle all executions). On 2026-11-19, creation of
+`EmbeddingRefreshFunction` failed because reserving one would reduce the account
+below its required minimum of ten unreserved executions. The error does not
+establish the account's total concurrency quota.
+
+Set `RESERVE_EMBEDDING_REFRESH_CONCURRENCY=true` only after verifying sufficient
+regional reservation headroom. That retains the optional strict cap of one.
+The default has no function-level concurrency cap or guaranteed capacity;
+scheduled/automatic retries normally finish before the next two-hour interval,
+but duplicate deliveries or manual invocations can overlap and repeat inference.
+Cache upserts remain idempotent, and work budgets are per invocation. No lock,
+queue, quota request, or additional AWS resource is introduced by this fix.
 
 Every sweep logs `embedding_refresh_summary` with users, scanned, generated,
 skipped, failed, attempted, `remaining_work`, and `stop_reason`. Subject failures,
