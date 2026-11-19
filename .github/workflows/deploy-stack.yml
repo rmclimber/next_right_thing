@@ -27,6 +27,9 @@ jobs:
         ENABLE_FRONTEND_HOSTING: ${{ vars.ENABLE_FRONTEND_HOSTING }}
         ENABLE_DATABASE_BACKEND: ${{ vars.ENABLE_DATABASE_BACKEND }}
         SECRETS_MANAGER_ENDPOINT_MULTI_AZ: ${{ vars.SECRETS_MANAGER_ENDPOINT_MULTI_AZ }}
+        RECOMMENDATION_RANKING_MODE: ${{ vars.RECOMMENDATION_RANKING_MODE || 'baseline' }}
+        ENABLE_EMBEDDING_REFRESH: ${{ vars.ENABLE_EMBEDDING_REFRESH || 'true' }}
+        EMBEDDING_REFRESH_MAX_EMBEDDINGS: ${{ vars.EMBEDDING_REFRESH_MAX_EMBEDDINGS || '100' }}
 
     steps:
       - name: Checkout
@@ -453,6 +456,26 @@ jobs:
         run: |
           aws s3 cp "${RSS_FETCH_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${RSS_FETCH_ARTIFACT_KEY}"
 
+      - name: Build Embedding Refresh Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          EMBEDDING_REFRESH_ARTIFACT_KEY="lambda/embedding-refresh/${GITHUB_SHA}.zip"
+          EMBEDDING_REFRESH_ARTIFACT_PATH="dist/lambda/embedding-refresh.zip"
+
+          rm -rf dist/lambda/embedding-refresh "${EMBEDDING_REFRESH_ARTIFACT_PATH}"
+          mkdir -p dist/lambda/embedding-refresh
+          python -m pip install --target dist/lambda/embedding-refresh ./backend
+
+          (cd dist/lambda/embedding-refresh && zip -r ../embedding-refresh.zip .)
+
+          echo "EMBEDDING_REFRESH_ARTIFACT_KEY=${EMBEDDING_REFRESH_ARTIFACT_KEY}" >> "$GITHUB_ENV"
+          echo "EMBEDDING_REFRESH_ARTIFACT_PATH=${EMBEDDING_REFRESH_ARTIFACT_PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload Embedding Refresh Lambda Artifact
+        if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
+        run: |
+          aws s3 cp "${EMBEDDING_REFRESH_ARTIFACT_PATH}" "s3://${ARTIFACT_BUCKET}/${EMBEDDING_REFRESH_ARTIFACT_KEY}"
+
       - name: Deploy Ingestion Stack
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
         run: |
@@ -474,7 +497,11 @@ jobs:
               SourceDispatchFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
               SourceDispatchFunctionCodeS3Key="${SOURCE_DISPATCH_ARTIFACT_KEY}" \
               RssFetchFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
-              RssFetchFunctionCodeS3Key="${RSS_FETCH_ARTIFACT_KEY}"
+              RssFetchFunctionCodeS3Key="${RSS_FETCH_ARTIFACT_KEY}" \
+              EmbeddingRefreshFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              EmbeddingRefreshFunctionCodeS3Key="${EMBEDDING_REFRESH_ARTIFACT_KEY}" \
+              EnableEmbeddingRefresh="${ENABLE_EMBEDDING_REFRESH}" \
+              EmbeddingRefreshMaxEmbeddings="${EMBEDDING_REFRESH_MAX_EMBEDDINGS}"
 
       - name: Deploy API Stack
         if: ${{ vars.ENABLE_DATABASE_BACKEND == 'true' }}
@@ -503,6 +530,7 @@ jobs:
               ContentItemsFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
               ContentItemsFunctionCodeS3Key="${CONTENT_ITEMS_ARTIFACT_KEY}" \
               RecommendationsFunctionCodeS3Bucket="${ARTIFACT_BUCKET}" \
+              RecommendationRankingMode="${RECOMMENDATION_RANKING_MODE}" \
               RecommendationsFunctionCodeS3Key="${RECOMMENDATIONS_ARTIFACT_KEY}"
 
       - name: Read API Stack Outputs

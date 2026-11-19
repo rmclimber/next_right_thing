@@ -1,9 +1,8 @@
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import re
+from dataclasses import dataclass
+from datetime import UTC, datetime
 
 from nrt_backend.recommendations.candidates import CandidateAction
-
 
 RECENCY_WEIGHT = 0.40
 GOAL_RELEVANCE_WEIGHT = 0.35
@@ -25,22 +24,23 @@ class ScoredCandidate:
     matching_goal_title: str | None
 
 
-def score_candidate(candidate: CandidateAction, goals: list[dict], available_minutes: int, now: datetime) -> ScoredCandidate:
+def score_candidate(candidate: CandidateAction, goals: list[dict], available_minutes: int, now: datetime,
+                    *, relevance: tuple[float, str | None] | None = None) -> ScoredCandidate:
     recency = recency_score(candidate, now)
-    relevance, matching_goal_title = goal_relevance_score(candidate, goals)
+    relevance_score, matching_goal_title = relevance if relevance is not None else goal_relevance_score(candidate, goals)
     duration = duration_fit_score(candidate.estimated_duration_minutes, available_minutes)
     total = (
         RECENCY_WEIGHT * recency
-        + GOAL_RELEVANCE_WEIGHT * relevance
+        + GOAL_RELEVANCE_WEIGHT * relevance_score
         + DURATION_FIT_WEIGHT * duration
     )
-    return ScoredCandidate(candidate, recency, relevance, duration, total, matching_goal_title)
+    return ScoredCandidate(candidate, recency, relevance_score, duration, total, matching_goal_title)
 
 
 def recency_score(candidate: CandidateAction, now: datetime) -> float:
     reference_time = candidate.published_at or candidate.discovered_at
     if reference_time.tzinfo is None:
-        reference_time = reference_time.replace(tzinfo=timezone.utc)
+        reference_time = reference_time.replace(tzinfo=UTC)
     age_days = max(0.0, (now - reference_time).total_seconds() / 86_400)
     if age_days < 1:
         return 1.0
