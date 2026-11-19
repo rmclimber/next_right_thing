@@ -241,6 +241,11 @@ maps to ingestion parameter `EnableEmbeddingRefresh`; `false` disables only the
 schedule. `EMBEDDING_REFRESH_MAX_EMBEDDINGS` defaults to `100` and maps to
 `EmbeddingRefreshMaxEmbeddings` (1..1000 per invocation). These are independent of
 the API's `RECOMMENDATION_RANKING_MODE`, which still defaults to `baseline`.
+`RESERVE_EMBEDDING_REFRESH_CONCURRENCY` defaults to `false` and maps to
+`ReserveEmbeddingRefreshConcurrency`: the worker uses shared unreserved capacity
+so small-account reservation limits do not prevent creation. Set it to `true`
+only with sufficient regional quota headroom to reserve and cap concurrency at
+one. Do not use reserved concurrency zero as a workaround; that disables execution.
 The existing `ENABLE_DATABASE_BACKEND` gate controls packaging/deployment along
 with the other ingestion resources.
 

@@ -58,7 +58,8 @@ Tests create and remove isolated schemas. See [operations and evaluation](operat
   have already persisted.
 - Given another user's ID, when saving a vector, then ownership checks reject it.
 - Given the infrastructure definitions, when validated, then the worker has no
-  VPC attachment or paid network resource, concurrency is one, IAM scopes cluster,
+  VPC attachment or paid network resource, concurrency reservation is omitted by
+  default and can opt into a cap of one, IAM scopes cluster,
   secret and model ARNs, and the disableable schedule runs every two hours.
 - Given deployment packaging, when validating the workflow, then the SHA-keyed
   worker artifact and schedule controls are passed only under the database gate,

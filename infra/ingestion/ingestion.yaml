@@ -83,8 +83,15 @@ Parameters:
     MaxValue: 1000
     Description: Maximum new or stale subjects sent to Bedrock per invocation.
 
+  ReserveEmbeddingRefreshConcurrency:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Reserve and cap refresh concurrency at one only when the account has reservation headroom.
+
 Conditions:
   EmbeddingRefreshEnabled: !Equals [!Ref EnableEmbeddingRefresh, 'true']
+  EmbeddingRefreshConcurrencyReserved: !Equals [!Ref ReserveEmbeddingRefreshConcurrency, 'true']
 
 Resources:
   NormalizedContentItemsQueue:
@@ -380,7 +387,7 @@ Resources:
       Handler: nrt_backend.lambdas.embedding_refresh.handler.handler
       MemorySize: 512
       Timeout: 300
-      ReservedConcurrentExecutions: 1
+      ReservedConcurrentExecutions: !If [EmbeddingRefreshConcurrencyReserved, 1, !Ref AWS::NoValue]
       Role: !GetAtt EmbeddingRefreshFunctionRole.Arn
       LoggingConfig:
         LogFormat: JSON
