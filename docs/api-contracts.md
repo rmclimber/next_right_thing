@@ -101,6 +101,18 @@ derived exclusively from `requestContext.authorizer.jwt.claims.sub`; the
 response never exposes `user_id`. Results are ordered newest-first by
 `discovered_at`, then `created_at`, then `id` for deterministic ordering.
 
+Optional query parameters:
+
+- `limit`: decimal integer 1-100, default 50.
+- `filter`: `all` (default), `snoozed`, `completed`, or `archived`.
+- `cursor`: opaque continuation token returned by the previous page for the same filter.
+
+Explicit empty values and invalid input return `400` before a database query.
+Results use strict keyset pagination over the descending ordering above. Filters
+apply across the owned collection before the page limit: All includes every
+state, Snoozed includes only active items snoozed strictly beyond database NOW(),
+and Completed/Archived match their current state. Expired snoozes remain in All.
+
 Success response: `200 OK`
 
 ```json
@@ -128,7 +140,8 @@ Success response: `200 OK`
       "snoozed_until": null,
       "completed_at": null
     }
-  ]
+  ],
+  "next_cursor": null
 }
 ```
 
@@ -153,8 +166,22 @@ a Content Item User State row are returned as `active` with both timestamps
 `null`. An item is currently snoozed when its status is `active` and its
 `snoozed_until` is in the future. The endpoint exposes only current
 disposition, not User Action Event history. An authenticated user with no
-Content Items receives `{ "content_items": [] }` with `200 OK`. Internal
+Content Items receives `{ "content_items": [], "next_cursor": null }` with `200 OK`. Internal
 failures return a generic `500 Internal Server Error` response.
+
+`next_cursor` is a nonempty opaque string when more rows exist, and explicitly
+`null` on final/empty pages. No total count is returned. Tokens are bounded,
+versioned base64url JSON positions (timestamps/UUID/filter), never authorization
+credentials. All queries independently enforce authenticated item/source/state
+ownership. A deleted boundary row does not invalidate its position.
+
+There is no cross-request snapshot: new items above a position appear when
+restarting; deletion, disposition changes and snooze expiry can change later or
+revisited pages. Deploy the API before the pagination frontend and refresh old
+tabs. Legacy clients keep the envelope but receive only the first 50 by default.
+The new client reports missing/invalid pagination metadata as a retry/update error.
+Browsing pagination does not affect recommendation eligibility or its independent
+latest-50 candidate pool. No schema migration is required.
 
 ## GET /me
 

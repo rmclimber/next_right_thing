@@ -7,14 +7,12 @@ import { getCurrentUser, signOut } from "aws-amplify/auth";
 
 import { configureAmplify } from "@/lib/amplify-client";
 import { AuthenticatedNavigation } from "@/components/authenticated-navigation";
-import { ContentItem, listContentItems } from "@/lib/content-items-api";
+import { ContentItem, ContentItemFilter, listContentItems } from "@/lib/content-items-api";
 
 type ContentItemsState =
   | { status: "loading" }
-  | { status: "ready"; items: ContentItem[] }
-  | { status: "error" };
-
-type ContentItemFilter = "all" | "snoozed" | "completed" | "archived";
+  | { status: "ready"; items: ContentItem[]; nextCursor: string | null; page: number }
+  | { status: "error"; message: string };
 
 function formatTimestamp(timestamp: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -37,14 +35,6 @@ function isCurrentlySnoozed(item: ContentItem, now: Date): boolean {
   return item.status === "active" && item.snoozed_until !== null && new Date(item.snoozed_until) > now;
 }
 
-function filterItems(items: ContentItem[], filter: ContentItemFilter, now: Date): ContentItem[] {
-  if (filter === "all") {
-    return items;
-  }
-
-  return items.filter((item) => filter === "snoozed" ? isCurrentlySnoozed(item, now) : item.status === filter);
-}
-
 function emptyMessage(filter: ContentItemFilter): string {
   switch (filter) {
     case "snoozed": return "No snoozed items.";
@@ -60,6 +50,9 @@ export default function ContentItemsPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [filter, setFilter] = useState<ContentItemFilter>("all");
 
+  const [cursors, setCursors] = useState<(string | null)[]>([null]);
+  const [page, setPage] = useState(0);
+
   useEffect(() => {
     let active = true;
 
@@ -67,10 +60,10 @@ export default function ContentItemsPage() {
       try {
         configureAmplify();
         await getCurrentUser();
-        const response = await listContentItems();
+        const response = await listContentItems({ filter, limit: 50, cursor: cursors[page] });
 
         if (active) {
-          setState({ status: "ready", items: response.content_items });
+          setState({ status: "ready", items: response.content_items, nextCursor: response.next_cursor, page });
         }
       } catch (caught) {
         if (!active) {
@@ -82,7 +75,7 @@ export default function ContentItemsPage() {
           return;
         }
 
-        setState({ status: "error" });
+        setState({ status: "error", message: caught instanceof Error ? caught.message : "Please try again." });
       }
     }
 
@@ -91,7 +84,7 @@ export default function ContentItemsPage() {
     return () => {
       active = false;
     };
-  }, [reloadKey, router]);
+  }, [reloadKey, router, filter, cursors, page]);
 
   async function handleSignOut() {
     configureAmplify();
@@ -120,37 +113,32 @@ export default function ContentItemsPage() {
 
         {state.status === "error" ? (
           <div className="error-state">
-            <p className="error compact-error">Content Items could not be loaded. Please try again.</p>
+            <p className="error compact-error">Content Items could not be loaded. {state.message}</p>
             <button className="button" type="button" onClick={retryLoading}>
               Retry
             </button>
           </div>
         ) : null}
 
-        {state.status === "ready" ? (() => {
-          const visibleItems = filterItems(state.items, filter, new Date());
-
-          return <section className="content-items-section" aria-label="Content Items list">
+        <div className="content-item-filters" aria-label="Filter content items">
+          {(["all", "snoozed", "completed", "archived"] as const).map((option) => (
+            <button aria-pressed={filter === option} className={`filter-button${filter === option ? " selected" : ""}`}
+              key={option} type="button" onClick={() => {
+                if (option === filter) return;
+                setState({ status: "loading" });
+                setFilter(option);
+                setCursors([null]);
+                setPage(0);
+              }}>{option.charAt(0).toUpperCase() + option.slice(1)}</button>
+          ))}
+        </div>
+        {state.status === "ready" ? (
+          <section className="content-items-section" aria-label="Content Items list">
             <div className="section-heading">
               <h2>Recently discovered</h2>
-              <p>{state.items.length} total</p>
+              <p>Showing {state.items.length} items · Page {state.page + 1}</p>
             </div>
-
-            <div className="content-item-filters" aria-label="Filter content items">
-              {(["all", "snoozed", "completed", "archived"] as const).map((option) => (
-                <button
-                  aria-pressed={filter === option}
-                  className={`filter-button${filter === option ? " selected" : ""}`}
-                  key={option}
-                  onClick={() => setFilter(option)}
-                  type="button"
-                >
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            {state.items.length === 0 ? (
+            {state.items.length === 0 && filter === "all" && page === 0 ? (
               <div className="empty-state">
                 <h3>No Content Items yet</h3>
                 <p>Active content sources will appear here after NRT discovers new items.</p>
@@ -158,19 +146,29 @@ export default function ContentItemsPage() {
                   View Content Sources
                 </Link>
               </div>
-            ) : visibleItems.length === 0 ? (
+            ) : state.items.length === 0 ? (
               <div className="empty-state">
-                <p>{emptyMessage(filter)}</p>
+                <p>{page > 0 ? "No items on this page. Go back or reload to restart." : emptyMessage(filter)}</p>
               </div>
             ) : (
               <ul className="content-items-list">
-                {visibleItems.map((item) => (
+                {state.items.map((item) => (
                   <ContentItemCard item={item} key={item.id} />
                 ))}
               </ul>
             )}
-          </section>;
-        })() : null}
+          </section>
+        ) : null}
+        <div className="content-item-filters" aria-label="Pagination">
+          <button className="button" type="button" disabled={state.status !== "ready" || page === 0}
+            onClick={() => { setState({ status: "loading" }); setPage(page - 1); }}>Previous</button>
+          <button className="button" type="button" disabled={state.status !== "ready" || state.nextCursor === null}
+            onClick={() => {
+              if (state.status !== "ready" || state.nextCursor === null) return;
+              setCursors([...cursors.slice(0, page + 1), state.nextCursor]);
+              setState({ status: "loading" }); setPage(page + 1);
+            }}>Next</button>
+        </div>
       </section>
     </main>
   );

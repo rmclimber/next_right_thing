@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -44,7 +44,7 @@ describe("ContentItemsPage", () => {
   });
 
   it("renders an article with nullable duration and no extra type badge", async () => {
-    listContentItems.mockResolvedValue({ content_items: [item({ duration_minutes: null })] });
+    listContentItems.mockResolvedValue({ next_cursor: null, content_items: [item({ duration_minutes: null })] });
     render(<ContentItemsPage />);
     expect(await screen.findByRole("link", { name: "First article" })).toBeInTheDocument();
     expect(screen.getByText("A concise summary.")).toBeInTheDocument();
@@ -54,7 +54,7 @@ describe("ContentItemsPage", () => {
 
   it("renders item source and disposition filters without changing API order", async () => {
     listContentItems.mockResolvedValue({
-      content_items: [
+      next_cursor: null, content_items: [
         item({ id: "active", title: "Newest active" }),
         item({ id: "snoozed", title: "Snoozed article", snoozed_until: "2099-01-01T00:00:00Z" }),
         item({ id: "expired", title: "Expired snooze", snoozed_until: "2000-01-01T00:00:00Z" }),
@@ -75,19 +75,16 @@ describe("ContentItemsPage", () => {
       "Newest active", "Snoozed article", "Expired snooze", "Completed article", "Archived article",
     ]);
 
+    listContentItems.mockResolvedValue({ next_cursor: null, content_items: [item({title: "Server snoozed match"})] });
     await user.click(screen.getByRole("button", { name: "Snoozed" }));
-    expect(screen.getByRole("link", { name: "Snoozed article" })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "Server snoozed match" })).toBeInTheDocument();
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "snoozed", limit: 50, cursor: null });
     expect(screen.queryByRole("link", { name: "Expired snooze" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Completed" }));
-    expect(screen.getByRole("link", { name: "Completed article" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Archived" }));
-    expect(screen.getByRole("link", { name: "Archived article" })).toBeInTheDocument();
   });
 
   it.each([42, null])("distinguishes podcast episodes with duration %s and an external listening link", async (duration_minutes) => {
-    listContentItems.mockResolvedValue({ content_items: [item({
+    listContentItems.mockResolvedValue({ next_cursor: null, content_items: [item({
       content_type: "podcast_episode", duration_minutes, title: "Professional podcast",
       url: "https://example.com/audio.mp3", summary: "Episode <strong>description</strong>.",
     })] });
@@ -101,7 +98,7 @@ describe("ContentItemsPage", () => {
   });
 
   it("shows an empty state when no Content Items are available", async () => {
-    listContentItems.mockResolvedValue({ content_items: [] });
+    listContentItems.mockResolvedValue({ next_cursor: null, content_items: [] });
     render(<ContentItemsPage />);
     expect(await screen.findByText("No Content Items yet")).toBeInTheDocument();
   });
@@ -111,4 +108,58 @@ describe("ContentItemsPage", () => {
     render(<ContentItemsPage />);
     expect(await screen.findByText(/Content Items could not be loaded/)).toBeInTheDocument();
   });
+  it("navigates pages, retries a failed Next, and preserves history", async () => {
+    const user = userEvent.setup();
+    listContentItems.mockResolvedValueOnce({ next_cursor: "page-two", content_items: [item({})] })
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ next_cursor: null, content_items: [item({ title: "Second page" })] })
+      .mockResolvedValueOnce({ next_cursor: "page-two", content_items: [item({})] });
+    render(<ContentItemsPage />);
+    await screen.findByText("Showing 1 items · Page 1");
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByText(/Content Items could not be loaded/);
+    expect(screen.queryByText(/Page 2/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("Showing 1 items · Page 2");
+    expect(listContentItems).toHaveBeenLastCalledWith({filter: "all", limit: 50, cursor: "page-two"});
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Previous" }));
+    await screen.findByText("Showing 1 items · Page 1");
+    expect(listContentItems).toHaveBeenLastCalledWith({filter: "all", limit: 50, cursor: null});
+  });
+
+  it("resets page two on filter change and shows a filtered empty state", async () => {
+    const user = userEvent.setup();
+    listContentItems.mockResolvedValueOnce({ next_cursor: "two", content_items: [item({})] })
+      .mockResolvedValueOnce({ next_cursor: null, content_items: [item({})] })
+      .mockResolvedValueOnce({ next_cursor: null, content_items: [] });
+    render(<ContentItemsPage />);
+    await screen.findByText(/Page 1/);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByText(/Page 2/);
+    await user.click(screen.getByRole("button", { name: "Completed" }));
+    await screen.findByText("No completed items yet.");
+    expect(screen.getByText("Showing 0 items · Page 1")).toBeInTheDocument();
+    expect(listContentItems).toHaveBeenLastCalledWith({filter: "completed", limit: 50, cursor: null});
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.queryByText("No Content Items yet")).not.toBeInTheDocument();
+  });
+
+  it("ignores a stale response and disables duplicate navigation during loading", async () => {
+    const user = userEvent.setup();
+    let resolveOld!: (value: unknown) => void;
+    listContentItems.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
+      .mockResolvedValueOnce({ next_cursor: null, content_items: [item({title: "Current filter"})] });
+    render(<ContentItemsPage />);
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Archived" }));
+    await screen.findByRole("link", {name: "Current filter"});
+    await act(async () => { resolveOld({ next_cursor: "stale", content_items: [item({title: "Stale page"})] }); });
+    expect(screen.queryByRole("link", {name: "Stale page"})).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+  });
+
 });
