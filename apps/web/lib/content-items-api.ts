@@ -27,10 +27,24 @@ export type ContentItem = {
   };
 };
 
+export type ContentItemFilter = "all" | "snoozed" | "completed" | "archived";
+
 export type ContentItemListResponse = {
   content_items: ContentItem[];
+  next_cursor: string | null;
 };
 
-export async function listContentItems(): Promise<ContentItemListResponse> {
-  return authenticatedRequest<ContentItemListResponse>("/content-items");
+export async function listContentItems({ filter = "all", limit = 50, cursor = null }: {
+  filter?: ContentItemFilter; limit?: number; cursor?: string | null;
+} = {}): Promise<ContentItemListResponse> {
+  const query = new URLSearchParams({ filter, limit: String(limit) });
+  if (cursor !== null) query.set("cursor", cursor);
+  const response = await authenticatedRequest<ContentItemListResponse>(`/content-items?${query}`);
+  if (!response || !Array.isArray(response.content_items) || response.content_items.length > limit ||
+      !(response.next_cursor === null || (typeof response.next_cursor === "string" &&
+        response.next_cursor.length > 0 && response.next_cursor.length <= 2048 &&
+        /^[A-Za-z0-9_-]+$/.test(response.next_cursor)))) {
+    throw new Error("Content Items pagination is unavailable. Please retry after the API has been updated.");
+  }
+  return response;
 }

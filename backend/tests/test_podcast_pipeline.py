@@ -96,6 +96,7 @@ class PodcastPipelinePostgresTests(unittest.TestCase):
 
         response = items_api.handler(api_event(), None)
         self.assertEqual(response["statusCode"], 200)
+        self.assertIsNone(json.loads(response["body"])["next_cursor"])
         items = json.loads(response["body"])["content_items"]
         self.assertEqual(len(items), 4)
         by_identity = {item["external_id"]: item for item in items}

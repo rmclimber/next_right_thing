@@ -132,7 +132,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
         connection = FakeConnection(cursor)
 
         with patch.object(repository, "connect", return_value=connection):
-            result = ContentItemRepository().list_for_user("cognito-user-sub")
+            result, position = ContentItemRepository().list_for_user("cognito-user-sub")
 
         query, params = cursor.executions[0]
         self.assertIn("LEFT JOIN content_item_user_state", query)
@@ -142,7 +142,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
         self.assertIn("WHERE content_items.user_id = %s", query)
         self.assertIn("ORDER BY content_items.discovered_at DESC, content_items.created_at DESC, content_items.id DESC", query)
         self.assertNotIn("cognito-user-sub", query)
-        self.assertEqual(params, ("cognito-user-sub", "cognito-user-sub"))
+        self.assertEqual(params, ("cognito-user-sub", "cognito-user-sub", 51))
         self.assertEqual(result[0]["id"], str(item_id))
         self.assertEqual(result[0]["content_source_id"], str(source_id))
         self.assertEqual(result[0]["content_type"], "article")
@@ -170,7 +170,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
         connection = FakeConnection(cursor)
 
         with patch.object(repository, "connect", return_value=connection):
-            result = ContentItemRepository().list_for_user("user-a")
+            result, position = ContentItemRepository().list_for_user("user-a")
 
         self.assertEqual(result[0]["status"], "active")
         self.assertEqual(result[0]["snoozed_until"], "2026-10-20T13:00:00+00:00")
@@ -188,7 +188,7 @@ class ContentItemRepositoryTests(unittest.TestCase):
             ContentItemRepository().list_for_user("user-b")
 
         _, params = cursor.executions[0]
-        self.assertEqual(params, ("user-b", "user-b"))
+        self.assertEqual(params, ("user-b", "user-b", 51))
 
     def test_create_persists_explicit_type_and_known_duration(self):
         cursor = FakeCursor(fetchone_result=(True, True))
@@ -199,6 +199,41 @@ class ContentItemRepositoryTests(unittest.TestCase):
         self.assertIn("duration_minutes", query)
         self.assertEqual(params[-2:], ("podcast_episode", 42))
         self.assertEqual(query.count("%s"), len(params))
+
+    def test_bounded_lookahead_and_cursor_uses_last_returned_row(self):
+        timestamp = datetime(2026, 11, 20, 0, 0, 0, 123456, timezone.utc)
+        source_id = UUID(int=999)
+        rows = [(UUID(int=i), source_id, str(i), "Title", "https://example.com", None, None,
+                 timestamp, timestamp, timestamp, source_id, "Source", "https://example.com/feed",
+                 "active", None, None, "article", None) for i in range(102, 0, -1)]
+        for limit in (1, 50, 100):
+            for size in (0, 1, 49, 50, 51, 100, 101):
+                cursor = FakeCursor(fetchall_result=rows[:min(size, limit + 1)])
+                with patch.object(repository, "connect", return_value=FakeConnection(cursor)):
+                    items, position = ContentItemRepository().list_for_user("user", limit=limit)
+                self.assertEqual(len(items), min(size, limit))
+                self.assertEqual(position, (timestamp, timestamp, rows[limit - 1][0]) if size > limit else None)
+                self.assertEqual(cursor.executions[0][1][-1], limit + 1)
+
+    def test_sql_filters_and_position_are_applied_before_limit(self):
+        position = (datetime(2026, 11, 20, tzinfo=timezone.utc), datetime(2026, 11, 19, tzinfo=timezone.utc), UUID(int=5))
+        for filter in ("all", "snoozed", "completed", "archived"):
+            cursor = FakeCursor()
+            with patch.object(repository, "connect", return_value=FakeConnection(cursor)):
+                ContentItemRepository().list_for_user("user", limit=1, filter=filter, position=position)
+            query, params = cursor.executions[0]
+            self.assertIn("< (%s, %s, %s)", query)
+            self.assertIn("LIMIT %s", query)
+            self.assertNotIn("OFFSET", query)
+            self.assertNotIn("embedding", query)
+            self.assertEqual(params[:2], ("user", "user"))
+            self.assertEqual(params[-4:], (*position, 2))
+            self.assertEqual(query.count("%s"), len(params))
+            if filter == "snoozed":
+                self.assertIn("status = 'active'", query)
+                self.assertIn("snoozed_until > NOW()", query)
+            elif filter != "all":
+                self.assertEqual(params[2], filter)
 
 
 if __name__ == "__main__":

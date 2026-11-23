@@ -124,7 +124,7 @@ class ContentItemContractPostgresTests(unittest.TestCase):
                 self.assertEqual(next(item for item in items if item["content_type"] == "book")["duration_minutes"], 600)
                 self.assertEqual(next(item for item in items if item["external_id"] == "article")["duration_minutes"], 1)
                 self.assertTrue(all(item["status"] == "active" for item in items))
-                self.assertEqual(items_repository.ContentItemRepository().list_for_user("other-user"), [])
+                self.assertEqual(items_repository.ContentItemRepository().list_for_user("other-user"), ([], None))
 
             with patch.object(recommendations_repository, "connect", side_effect=connect):
                 response = recommendations_api.handler(event, None)

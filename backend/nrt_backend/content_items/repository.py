@@ -82,7 +82,9 @@ LEFT JOIN content_item_user_state
   ON content_item_user_state.content_item_id = content_items.id
  AND content_item_user_state.user_id = %s
 WHERE content_items.user_id = %s
-ORDER BY content_items.discovered_at DESC, content_items.created_at DESC, content_items.id DESC;
+{conditions}
+ORDER BY content_items.discovered_at DESC, content_items.created_at DESC, content_items.id DESC
+LIMIT %s;
 """
 
 
@@ -148,14 +150,31 @@ class ContentItemRepository:
         finally:
             connection.close()
 
-    def list_for_user(self, user_id: str):
+    def list_for_user(self, user_id: str, *, limit=50, filter="all", position=None):
+        """Return at most limit owned items and a position when a lookahead exists."""
+        conditions = []
+        params = [user_id, user_id]
+        if filter == "snoozed":
+            conditions.append("content_item_user_state.status = 'active' AND content_item_user_state.snoozed_until > NOW()")
+        elif filter in {"completed", "archived"}:
+            conditions.append("content_item_user_state.status = %s")
+            params.append(filter)
+        if position is not None:
+            conditions.append("(content_items.discovered_at, content_items.created_at, content_items.id) < (%s, %s, %s)")
+            params.extend(position)
+        params.append(limit + 1)
+        query = LIST_CONTENT_ITEMS_SQL.format(conditions="".join("AND " + clause + "\n" for clause in conditions))
         connection = connect()
-
         try:
             with connection.cursor() as cursor:
-                cursor.execute(LIST_CONTENT_ITEMS_SQL, (user_id, user_id))
+                cursor.execute(query, tuple(params))
                 rows = cursor.fetchall()
-            return [_content_item_from_row(row) for row in rows]
+            items = [_content_item_from_row(row) for row in rows[:limit]]
+            next_position = None
+            if len(rows) > limit:
+                boundary = rows[limit - 1]
+                next_position = (boundary[7], boundary[8], boundary[0])
+            return items, next_position
         finally:
             connection.close()
 
