@@ -1,6 +1,7 @@
 # Content Items pagination test plan
 
-Status: implementation checks run 2026-11-20. See the
+Status: original slice merged and deployed (user-reported 2026-11-24).
+Compact controls/page-size follow-up is local and uncommitted. See the
 [implementation report](implementation-report.md) for results and skipped database acceptance.
 Contract: [specification](spec.md).
 
@@ -44,10 +45,20 @@ not evidence of PostgreSQL correctness; report them explicitly.
 ## Frontend behavior
 
 - Given page one with a next cursor, when navigating Next/Previous, then the
-  correct request cursor and filter are sent, at most 50 items are displayed,
+  correct request cursor, filter and selected size are sent; at most the selected
+  number of items are displayed;
   page labels are honest, and first/final controls have the correct disabled state.
 - Given page two, when changing filter, then the UI requests its first page,
   clears old cursor history, and displays all matches from the server response.
+- Given compact navigation controls, when using keyboard/screen-reader navigation,
+  then Previous/Next have accessible names, hover labels, chevron icons and the
+  existing disabled/loading behavior.
+- Given page two and a selected filter, when choosing 10/25/50/100 items per page,
+  then the next request uses the chosen limit and no cursor, resets to page one,
+  clears history and retains the filter. Subsequent Next/Previous use that size.
+- Given a size change during loading or a failed request, when an older response
+  arrives or Retry is selected, then stale data is ignored and Retry uses the new
+  size. Reload starts at default 50; filter changes retain the current size.
 - Given overlapping requests, when an older request resolves last, then it does
   not replace the current page. Failed navigation/retry must preserve valid history.
 - Given empty, partial-final or old-backend responses, when rendering, then
@@ -63,7 +74,10 @@ build using [handoff commands](implementation-prompt.md#validation). Adapt exist
 API/podcast tests to the new envelope; do not weaken their behavioral assertions.
 Report command, interpreter, commit, result and every skipped/blocked check.
 
-After a separately approved deployment, verify a large real collection with
+Original deployment is user-reported; full manual acceptance remains outstanding.
+After a separately approved release of the UI follow-up, also verify the size
+selector and icon controls on desktop/mobile, with keyboard and both themes.
+Verify a large real collection with
 All/Snoozed/Completed/Archived, navigate both ways, check links and reload to
 refresh current data. Verify API response bounds, no unrelated user rows and no
 new semantic-provider dependency. This manual pass does not require activating

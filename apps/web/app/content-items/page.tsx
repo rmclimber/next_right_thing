@@ -52,6 +52,7 @@ export default function ContentItemsPage() {
 
   const [cursors, setCursors] = useState<(string | null)[]>([null]);
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
 
   useEffect(() => {
     let active = true;
@@ -60,7 +61,7 @@ export default function ContentItemsPage() {
       try {
         configureAmplify();
         await getCurrentUser();
-        const response = await listContentItems({ filter, limit: 50, cursor: cursors[page] });
+        const response = await listContentItems({ filter, limit: pageSize, cursor: cursors[page] });
 
         if (active) {
           setState({ status: "ready", items: response.content_items, nextCursor: response.next_cursor, page });
@@ -84,7 +85,7 @@ export default function ContentItemsPage() {
     return () => {
       active = false;
     };
-  }, [reloadKey, router, filter, cursors, page]);
+  }, [reloadKey, router, filter, cursors, page, pageSize]);
 
   async function handleSignOut() {
     configureAmplify();
@@ -159,15 +160,32 @@ export default function ContentItemsPage() {
             )}
           </section>
         ) : null}
-        <div className="content-item-filters" aria-label="Pagination">
-          <button className="button" type="button" disabled={state.status !== "ready" || page === 0}
-            onClick={() => { setState({ status: "loading" }); setPage(page - 1); }}>Previous</button>
-          <button className="button" type="button" disabled={state.status !== "ready" || state.nextCursor === null}
+        <div className="content-items-pagination" role="group" aria-label="Pagination">
+          <label className="content-items-page-size">
+            Items per page
+            <select value={pageSize} onChange={(event) => {
+              setState({ status: "loading" });
+              setPageSize(Number(event.target.value));
+              setCursors([null]);
+              setPage(0);
+            }}>
+              {[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+            </select>
+          </label>
+          <button className="button pagination-icon-button" type="button" aria-label="Previous" title="Previous page"
+            disabled={state.status !== "ready" || page === 0}
+            onClick={() => { setState({ status: "loading" }); setPage(page - 1); }}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m15 6-6 6 6 6" /></svg>
+          </button>
+          <button className="button pagination-icon-button" type="button" aria-label="Next" title="Next page"
+            disabled={state.status !== "ready" || state.nextCursor === null}
             onClick={() => {
               if (state.status !== "ready" || state.nextCursor === null) return;
               setCursors([...cursors.slice(0, page + 1), state.nextCursor]);
               setState({ status: "loading" }); setPage(page + 1);
-            }}>Next</button>
+            }}>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6" /></svg>
+          </button>
         </div>
       </section>
     </main>

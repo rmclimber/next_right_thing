@@ -1,5 +1,36 @@
 # Pagination implementation report
 
+## Current status — 2026-11-24
+
+- Original feature commit `e877d77` was integrated via PR as `2498a3e` on main.
+  The user reported merge/pull on 2026-11-23 and deployment on 2026-11-24.
+  Exact deployed SHA/environment and full live acceptance were not independently
+  verified. Real PostgreSQL tests remain outstanding.
+- Five obsolete worktrees were archived and unregistered; 28 equivalent/integrated
+  local branch names were deleted after preserving history in a verified bundle.
+  Main is the sole active worktree. Planning files were selectively restored;
+  the stash, backup branch and `content/multiple_types` with unmatched patches
+  remain. See [project status](../../planning/PROJECT_STATUS.md) for recovery.
+- Follow-up explicitly authorized directly on main: compact accessible chevron
+  buttons and an Items per page selector (10/25/50/100, default 50), using the
+  existing API. Size changes retain the filter, clear cursor history and restart
+  at page one; reload restores default 50. No backend/dependency/schema change.
+- Planning and UI follow-up changes remain uncommitted/unpushed/undeployed.
+- Follow-up checks on main at `2498a3e` plus working-tree changes:
+  `pnpm --filter @nrt/web test:run` passed all 41 tests in six files;
+  `pnpm --filter @nrt/web exec tsc --noEmit --incremental false` passed;
+  `pnpm build` compiled, checked types/lint and exported all routes using the
+  same process-local public test placeholders listed in the historical record;
+  `git diff --check` passed. The local .env.local file was not changed.
+  No backend code changed, so backend tests were not rerun for this UI follow-up.
+  The original seven PostgreSQL skips remain unresolved. No live browser/manual
+  acceptance is claimed for the compact controls or size selector.
+
+## Historical implementation record — 2026-11-20
+
+The following sections describe the original pre-commit handoff and its checks;
+their uncommitted/not-deployed statements are historical, superseded above.
+
 Recorded 2026-11-20 (America/Los_Angeles). Implemented in
 `dist/worktrees/content-items-pagination`, branch `codex/content-items-pagination`,
 base/HEAD `aef6c55409cb1a7683264711ee1180f6403ef3ca`.

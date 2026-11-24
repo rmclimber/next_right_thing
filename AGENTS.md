@@ -27,6 +27,19 @@ When making implementation decisions, follow this precedence order:
 - Update documentation.
 - Summarize what changed and what remains.
 
+## Planning continuity
+
+- Planning sessions start with `docs/planning/PROJECT_STATUS.md` and
+  `docs/planning/DECISIONS.md`, then inspect Git status and registered worktrees.
+- Use `docs/features/backlog.md` for candidate slices; feature specifications and
+  test plans stay under `docs/features/`, and architectural decisions in `docs/adr/`.
+- Update the status snapshot after substantial planning/review. Record the date,
+  commit, evidence and uncertainty; distinguish implemented, committed/integrated,
+  deployed and manually validated work. Index material decisions in the log.
+- Planning work does not authorize feature implementation. Do not commit, merge,
+  push or deploy without user approval, or alter another session's work without
+  approval. Coordinate ownership before changing shared files or worktrees.
+
 ## AWS CLI
 
 Do not execute AWS CLI (`aws`) commands from Codex.

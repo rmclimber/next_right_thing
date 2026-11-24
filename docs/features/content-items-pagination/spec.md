@@ -1,11 +1,13 @@
 # Content Items pagination
 
-Status: implemented locally 2026-11-20; uncommitted, not integrated or deployed.
+Status: original pagination integrated on main as `2498a3e`; deployed per user
+on 2026-11-24. Compact controls/page-size follow-up authorized on 2026-11-24
+is implemented locally on main, uncommitted and not deployed.
 See [implementation report](implementation-report.md) for verification and remaining acceptance.
 
 ## Outcome and independence
 
-Users can browse large Content Item collections in pages of 50 instead of
+Users can browse large Content Item collections in pages of 50 by default instead of
 loading the whole collection. Existing article and podcast presentation remains.
 The Item API/repository use Aurora through the existing database connection;
 they do not use semantic scoring, embeddings, Bedrock or the refresh worker.
@@ -25,7 +27,7 @@ No migration is expected: `20260914_0004` already indexes user/discovery time.
 Inspect query behavior; propose and justify any necessary migration rather than
 silently expanding scope. Major architectural changes require an ADR and approval.
 
-## API contract to implement
+## API contract
 
 `GET /content-items` retains Cognito ownership from JWT `sub` and all current
 Content Item fields. The collection itself becomes paginated by default.
@@ -37,8 +39,8 @@ Content Item fields. The collection itself becomes paginated by default.
 | `cursor` | First page | Nonempty opaque continuation token from this endpoint |
 
 Response: `{ "content_items": [...], "next_cursor": "..." }`; `next_cursor`
-is explicitly `null` on a final or empty page. There is no total-count query or
-page-size control in the UI for this slice. An explicit empty query value is
+is explicitly `null` on a final or empty page. There is no total-count query. The UI offers 10, 25, 50 or 100 items per page
+(default 50) using this existing limit contract. An explicit empty query value is
 invalid rather than an omitted default. Invalid limit/filter/cursor returns
 `400` with a safe message before querying the repository; unauthenticated
 requests remain `401`. Unexpected database failures remain generic `500`.
@@ -71,10 +73,13 @@ starts a fresh traversal. A valid position need not refer to a still-existing ro
 
 - Initial load requests All, limit 50, no cursor. Filters make API requests;
   remove collection filtering in the browser as the source of filter correctness.
-- Next uses `next_cursor`. Previous uses a small in-memory history of request
+- Compact chevron buttons expose accessible Next/Previous names and hover labels.
+  Next uses `next_cursor`. Previous uses a small in-memory history of request
   cursors; first-page Previous and final-page Next are disabled. No last-page
   jump, arbitrary page jump or browser-history integration is required.
-- Changing filter resets cursor history/page number and starts on page one.
+- Changing filter or page size resets cursor history/page number and starts on page
+  one. Size changes retain the selected filter; filter changes retain the size.
+  Page size is local state and resets to 50 on reload.
   Cancel/ignore stale responses so rapid navigation/filter changes cannot replace
   the current page with an older result. Disable duplicate navigation while loading.
 - Provide loading/error/retry states. A failed navigation must be retryable and
@@ -106,6 +111,9 @@ Implementation/tests are independent of working semantic relevance. Release is
 still coordinated: the existing workflow deploys ingestion before API/frontend,
 so a failed shared deployment step can block publishing this feature. Do not
 change that workflow or embedding settings to bypass another slice's problem.
-Any release/integration with the active embedding fix needs separate approval.
+The embedding concurrency fix is integrated as `351d01b`. No additional release
+or commit/push is authorized by the local 2026-11-24 UI follow-up.
+The original implementation prompt is historical; its feature worktree/branch
+were archived/retired during cleanup. Current work is in the primary main checkout.
 
 See [test plan](test-plan.md) and [implementation prompt](implementation-prompt.md).

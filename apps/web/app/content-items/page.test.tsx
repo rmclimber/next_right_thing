@@ -147,6 +147,58 @@ describe("ContentItemsPage", () => {
     expect(screen.queryByText("No Content Items yet")).not.toBeInTheDocument();
   });
 
+  it("uses icon controls and restarts paging when the page size changes", async () => {
+    const user = userEvent.setup();
+    listContentItems.mockResolvedValue({ next_cursor: "next-page", content_items: [item({})] });
+    render(<ContentItemsPage />);
+    await screen.findByText(/Page 1/);
+    expect(screen.getByRole("combobox", { name: "Items per page" })).toHaveValue("50");
+    for (const name of ["Previous", "Next"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button.textContent).toBe("");
+      expect(button.querySelector("svg")).not.toBeNull();
+      expect(button).toHaveAttribute("title", `${name} page`);
+    }
+    await user.click(screen.getByRole("button", { name: "Completed" }));
+    await screen.findByText(/Page 1/);
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByText(/Page 2/);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Items per page" }), "25");
+    await screen.findByText(/Page 1/);
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "completed", limit: 25, cursor: null });
+    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await screen.findByText(/Page 2/);
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "completed", limit: 25, cursor: "next-page" });
+    await user.click(screen.getByRole("button", { name: "Previous" }));
+    await screen.findByText(/Page 1/);
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "completed", limit: 25, cursor: null });
+    await user.click(screen.getByRole("button", { name: "Archived" }));
+    await screen.findByText(/Page 1/);
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "archived", limit: 25, cursor: null });
+    expect(screen.getByRole("combobox", { name: "Items per page" })).toHaveValue("25");
+  });
+
+  it("ignores an older page-size response and retries with the selected size", async () => {
+    const user = userEvent.setup();
+    let resolveOld!: (value: unknown) => void;
+    listContentItems.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue({ next_cursor: null, content_items: [item({ title: "Resized page" })] });
+    render(<ContentItemsPage />);
+    await user.selectOptions(screen.getByRole("combobox", { name: "Items per page" }), "100");
+    await screen.findByText(/Content Items could not be loaded/);
+    await act(async () => { resolveOld({ next_cursor: "stale", content_items: [item({ title: "Old size" })] }); });
+    expect(screen.queryByRole("link", { name: "Old size" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByRole("link", { name: "Resized page" });
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 100, cursor: null });
+    expect(screen.getByRole("combobox", { name: "Items per page" })).toHaveValue("100");
+    await user.selectOptions(screen.getByRole("combobox", { name: "Items per page" }), "10");
+    await screen.findByRole("link", { name: "Resized page" });
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 10, cursor: null });
+  });
+
   it("ignores a stale response and disables duplicate navigation during loading", async () => {
     const user = userEvent.setup();
     let resolveOld!: (value: unknown) => void;

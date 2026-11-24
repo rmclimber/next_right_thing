@@ -480,6 +480,48 @@ dd {
   margin-bottom: 20px;
 }
 
+.content-items-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.content-items-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+  font-size: 0.875rem;
+}
+
+.content-items-page-size select {
+  width: auto;
+  min-height: 36px;
+  padding: 6px 8px;
+}
+
+.pagination-icon-button {
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+}
+
+.pagination-icon-button:disabled {
+  cursor: default;
+}
+
+.pagination-icon-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .filter-button {
   min-height: 36px;
   padding: 0 13px;

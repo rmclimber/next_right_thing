@@ -12,8 +12,9 @@ The initial target users are:
 ## Repository Structure
 
 ```text
-apps/       Application entry points (web, API, workers)
-packages/   Shared libraries and domain code
+apps/web/   Next.js frontend
+backend/    Python APIs, services, ingestion workers, migrations and tests
+packages/   Shared/UI package placeholders
 infra/      Infrastructure-as-code (CloudFormation)
 docs/       Product, architecture, and feature documentation
 ```
@@ -28,6 +29,11 @@ Read these documents before making significant changes:
 4. `ENGINEERING.md` — Engineering workflow
 5. `AGENTS.md` — Guidance for AI coding agents
 
+For current work, verification evidence, and planning continuity, start with
+[Project status](docs/planning/PROJECT_STATUS.md), then the
+[decision log](docs/planning/DECISIONS.md) and
+[feature backlog](docs/features/backlog.md).
+
 ## Development Philosophy
 
 NRT is developed incrementally through small, end-to-end vertical slices.
@@ -41,4 +47,12 @@ Every feature should:
 
 ## Current Status
 
-The project is currently implementing its first end-to-end vertical slice: **Recommendations**.
+The committed application includes Goals, RSS Content Sources and fetch health,
+Content Items, recommendations and disposition/history controls, plus podcast
+ingestion and external listening. Semantic relevance is deployed but not yet
+operational due to AWS throttling, per the user on 2026-11-20. Content Items
+pagination is merged on main and deployed per the user on
+2026-11-24. A local follow-up adds compact navigation and adjustable page size;
+it is not yet committed or deployed. Obsolete worktrees/branches have been
+archived and retired; recovery and remaining validation evidence live in the
+project status snapshot.
