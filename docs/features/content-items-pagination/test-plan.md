@@ -44,6 +44,18 @@ not evidence of PostgreSQL correctness; report them explicitly.
 
 ## Frontend behavior
 
+- Given page one, when its next cursor exists, then Go to page offers 1 and 2,
+  with only the successful current page highlighted. Visiting page two may expose
+  3, while a final page exposes no extra unknown page. No total count is implied.
+- Given multiple visited pages, when jumping by number from either control bar,
+  then the saved request cursor is used directly. Returning to an unchanged earlier
+  page preserves later links. Changed boundaries discard downstream links, and
+  filter/size changes reset numbered history. Errors remain retryable and stale
+  requests cannot change the history or successful current-page indicator.
+
+- Given top and bottom pagination controls, when navigating or changing size from
+  either position, then both reflect the same state; they appear before and after
+  the item list and have distinct accessible navigation labels.
 - Given page one with a next cursor, when navigating Next/Previous, then the
   correct request cursor, filter and selected size are sent; at most the selected
   number of items are displayed;

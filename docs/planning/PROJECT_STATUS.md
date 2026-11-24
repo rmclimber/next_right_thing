@@ -7,8 +7,25 @@ document precedence remains in [AGENTS.md](../../AGENTS.md).
 
 ## Project snapshot
 
+- Latest local evidence (2026-11-24): HEAD is now `555ca6a` on main, containing
+  the compact controls/page-size follow-up; the worktree started clean for the
+  new top/bottom controls request. Its deployment is not independently verified.
+  Duplicated synchronized controls and numbered visited/next-page links are now
+  included in this publication, following the user's cursor-API selection.
+  Numbered jumps reuse saved positions; current-page highlighting appears only
+  after success. Changed/final boundaries invalidate downstream history.
+  This supersedes the older local/uncommitted status of that earlier follow-up below.
+- Publication authorized by the user on 2026-11-24: commit and push the pagination
+  UI changes and updated planning documents directly to main. Deployment of these
+  new changes remains unverified; no manual deployment operation was requested.
+- Placement-only checks passed 42 web tests, TypeScript and static build.
+  Combined placement/numbered-navigation checks passed all 45 web tests in six
+  files, TypeScript, static build with test public configuration and whitespace
+  checks; details are in the implementation report. No live-browser or new
+  database acceptance is claimed.
 - Primary checkout: `C:/data/rick/projects/next_right_thing`, branch `main`,
-  HEAD and stored `origin/main` at `2498a3ef42d6442ea59fff43afaa67b4e641f390`.
+  Pre-publication HEAD and stored `origin/main` were at `555ca6a`; original pagination integrated as
+  `2498a3ef42d6442ea59fff43afaa67b4e641f390`.
   This is the sole registered worktree after cleanup on 2026-11-24.
 - Pagination is **committed and integrated** as `2498a3e` (original feature
   commit `e877d77`). The user reported the PR merged/pulled on 2026-11-23
@@ -20,7 +37,8 @@ document precedence remains in [AGENTS.md](../../AGENTS.md).
 - Follow-up authorized on 2026-11-24 directly on main: compact chevron buttons
   with accessible labels and a 10/25/50/100 page-size selector (default 50).
   Changing size restarts page one, retains the filter and clears cursor history.
-  This follow-up is local/uncommitted and has not been deployed.
+  That follow-up is committed as `555ca6a`; its deployment is unverified. The new
+  top/bottom and numbered-navigation follow-up remains local/uncommitted.
 - Existing capabilities: Cognito sign-in; Goals and lifecycle; RSS Content Sources
   and fetch health; article/podcast ingestion; recommendations for 1–240 minutes;
   Complete, 24-hour Snooze, Archive, history, provenance, diversity and themes.

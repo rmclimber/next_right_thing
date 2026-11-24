@@ -15,7 +15,22 @@
   buttons and an Items per page selector (10/25/50/100, default 50), using the
   existing API. Size changes retain the filter, clear cursor history and restart
   at page one; reload restores default 50. No backend/dependency/schema change.
-- Planning and UI follow-up changes remain uncommitted/unpushed/undeployed.
+- Compact-controls/page-size follow-up is now committed as `555ca6a` on main;
+  its deployment is unverified. The new top/bottom and numbered-page changes
+  described below are included in this publication, with commit/push directly to
+  main authorized by the user on 2026-11-24. Their deployment remains unverified.
+- New follow-up: matching controls at the top and bottom, with numbered buttons
+  for visited pages plus the next cursor-backed page. Both bars share state and
+  highlight only the successful current page. Unchanged boundaries preserve
+  later links; changed/final boundaries invalidate downstream positions.
+  Filter/size changes clear history; failed/stale requests do not corrupt it.
+  No backend, total count, dependency or schema change is required.
+  Verification on main at `555ca6a` plus working-tree changes: all 45 web tests
+  in six files passed (`pnpm --filter @nrt/web test:run`), TypeScript passed
+  (`pnpm --filter @nrt/web exec tsc --noEmit --incremental false`), and the static
+  build (`pnpm build`) exported all routes with the same test public configuration
+  listed below. `git diff --check` passed. No backend tests were rerun because no
+  backend changed; existing DB skips and live-browser acceptance remain outstanding.
 - Follow-up checks on main at `2498a3e` plus working-tree changes:
   `pnpm --filter @nrt/web test:run` passed all 41 tests in six files;
   `pnpm --filter @nrt/web exec tsc --noEmit --incremental false` passed;

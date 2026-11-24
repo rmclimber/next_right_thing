@@ -2,7 +2,9 @@
 
 Status: original pagination integrated on main as `2498a3e`; deployed per user
 on 2026-11-24. Compact controls/page-size follow-up authorized on 2026-11-24
-is implemented locally on main, uncommitted and not deployed.
+was committed as `555ca6a`; deployment of that follow-up is unverified.
+Top/bottom controls and numbered known-page navigation are included in this change;
+the user authorized commit/push to main on 2026-11-24. Deployment is unverified.
 See [implementation report](implementation-report.md) for verification and remaining acceptance.
 
 ## Outcome and independence
@@ -74,9 +76,21 @@ starts a fresh traversal. A valid position need not refer to a still-existing ro
 - Initial load requests All, limit 50, no cursor. Filters make API requests;
   remove collection filtering in the browser as the source of filter correctness.
 - Compact chevron buttons expose accessible Next/Previous names and hover labels.
+  Matching controls, including the shared page-size selector, appear above and
+  below the item list, with distinct accessible navigation labels. Both positions
+  control the same page/filter/size state.
   Next uses `next_cursor`. Previous uses a small in-memory history of request
-  cursors; first-page Previous and final-page Next are disabled. No last-page
-  jump, arbitrary page jump or browser-history integration is required.
+  cursors; first-page Previous and final-page Next are disabled.
+- Both control bars include Go to page buttons for visited pages plus the next
+  page whose cursor is available. Highlight the current successful page using
+  aria-current and the existing selected-button styling. Page numbers are local
+  navigation history, not a total count or a snapshot of the collection.
+- Numbered jumps fetch the selected page using its saved cursor. Preserve later
+  positions when revisiting an unchanged boundary; discard downstream positions
+  if a response changes its next cursor or reports a final page. Failed/stale
+  requests must not update cursor history or mark a failed target current.
+  No jump to an unknown page, final-page shortcut or browser-history integration
+  is required. Filter/size changes clear all numbered history.
 - Changing filter or page size resets cursor history/page number and starts on page
   one. Size changes retain the selected filter; filter changes retain the size.
   Page size is local state and resets to 50 on reload.

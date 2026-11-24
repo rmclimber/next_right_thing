@@ -38,7 +38,12 @@
   Recommendation candidate selection and soft duration eligibility are unchanged.
 - 2026-11-24 follow-up authorized directly on main: compact accessible chevrons and
   10/25/50/100 items per page (default 50); size changes restart page one with the
-  current filter. Follow-up changes remain uncommitted and undeployed.
+  current filter. That follow-up is committed as `555ca6a`; deployment unverified.
+- Additional user-selected follow-up: matching controls above/below the list and
+  numbered links to visited pages plus the next cursor-backed page. Numbered
+  jumps reuse known positions, without a total count or backend extension.
+  Commit/push to main authorized 2026-11-24; deployment remains unverified.
+  Follow-up results are in the report.
 - Verification: original backend 241 tests, seven PostgreSQL skips; web 39 tests,
   TypeScript and static build passed. Real DB and full manual acceptance remain
   outstanding; see [report](content-items-pagination/implementation-report.md)

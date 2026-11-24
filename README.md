@@ -52,7 +52,9 @@ Content Items, recommendations and disposition/history controls, plus podcast
 ingestion and external listening. Semantic relevance is deployed but not yet
 operational due to AWS throttling, per the user on 2026-11-20. Content Items
 pagination is merged on main and deployed per the user on
-2026-11-24. A local follow-up adds compact navigation and adjustable page size;
-it is not yet committed or deployed. Obsolete worktrees/branches have been
+2026-11-24. Compact navigation and adjustable page size are committed as
+`555ca6a` (deployment unverified). Synchronized top/bottom controls and numbered
+visited/next-page links are included in the current follow-up (deployment unverified).
+Obsolete worktrees/branches have been
 archived and retired; recovery and remaining validation evidence live in the
 project status snapshot.

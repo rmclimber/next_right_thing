@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -35,6 +35,8 @@ function item(overrides: Partial<ContentItem>): ContentItem {
     ...overrides,
   };
 }
+
+const pagination = () => within(screen.getByRole("navigation", { name: "Pagination top" }));
 
 describe("ContentItemsPage", () => {
   beforeEach(() => {
@@ -116,15 +118,15 @@ describe("ContentItemsPage", () => {
       .mockResolvedValueOnce({ next_cursor: "page-two", content_items: [item({})] });
     render(<ContentItemsPage />);
     await screen.findByText("Showing 1 items · Page 1");
-    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(pagination().getByRole("button", { name: "Previous" })).toBeDisabled();
+    await user.click(pagination().getByRole("button", { name: "Next" }));
     await screen.findByText(/Content Items could not be loaded/);
     expect(screen.queryByText(/Page 2/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retry" }));
     await screen.findByText("Showing 1 items · Page 2");
     expect(listContentItems).toHaveBeenLastCalledWith({filter: "all", limit: 50, cursor: "page-two"});
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "Previous" }));
+    expect(pagination().getByRole("button", { name: "Next" })).toBeDisabled();
+    await user.click(pagination().getByRole("button", { name: "Previous" }));
     await screen.findByText("Showing 1 items · Page 1");
     expect(listContentItems).toHaveBeenLastCalledWith({filter: "all", limit: 50, cursor: null});
   });
@@ -136,14 +138,14 @@ describe("ContentItemsPage", () => {
       .mockResolvedValueOnce({ next_cursor: null, content_items: [] });
     render(<ContentItemsPage />);
     await screen.findByText(/Page 1/);
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(pagination().getByRole("button", { name: "Next" }));
     await screen.findByText(/Page 2/);
     await user.click(screen.getByRole("button", { name: "Completed" }));
     await screen.findByText("No completed items yet.");
     expect(screen.getByText("Showing 0 items · Page 1")).toBeInTheDocument();
     expect(listContentItems).toHaveBeenLastCalledWith({filter: "completed", limit: 50, cursor: null});
-    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(pagination().getByRole("button", { name: "Previous" })).toBeDisabled();
+    expect(pagination().getByRole("button", { name: "Next" })).toBeDisabled();
     expect(screen.queryByText("No Content Items yet")).not.toBeInTheDocument();
   });
 
@@ -152,31 +154,31 @@ describe("ContentItemsPage", () => {
     listContentItems.mockResolvedValue({ next_cursor: "next-page", content_items: [item({})] });
     render(<ContentItemsPage />);
     await screen.findByText(/Page 1/);
-    expect(screen.getByRole("combobox", { name: "Items per page" })).toHaveValue("50");
+    expect(pagination().getByRole("combobox", { name: "Items per page" })).toHaveValue("50");
     for (const name of ["Previous", "Next"]) {
-      const button = screen.getByRole("button", { name });
+      const button = pagination().getByRole("button", { name });
       expect(button.textContent).toBe("");
       expect(button.querySelector("svg")).not.toBeNull();
       expect(button).toHaveAttribute("title", `${name} page`);
     }
     await user.click(screen.getByRole("button", { name: "Completed" }));
     await screen.findByText(/Page 1/);
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    await user.click(pagination().getByRole("button", { name: "Next" }));
     await screen.findByText(/Page 2/);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Items per page" }), "25");
+    await user.selectOptions(pagination().getByRole("combobox", { name: "Items per page" }), "25");
     await screen.findByText(/Page 1/);
     expect(listContentItems).toHaveBeenLastCalledWith({ filter: "completed", limit: 25, cursor: null });
-    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(pagination().getByRole("button", { name: "Previous" })).toBeDisabled();
+    await user.click(pagination().getByRole("button", { name: "Next" }));
     await screen.findByText(/Page 2/);
     expect(listContentItems).toHaveBeenLastCalledWith({ filter: "completed", limit: 25, cursor: "next-page" });
-    await user.click(screen.getByRole("button", { name: "Previous" }));
+    await user.click(pagination().getByRole("button", { name: "Previous" }));
     await screen.findByText(/Page 1/);
     expect(listContentItems).toHaveBeenLastCalledWith({ filter: "completed", limit: 25, cursor: null });
     await user.click(screen.getByRole("button", { name: "Archived" }));
     await screen.findByText(/Page 1/);
     expect(listContentItems).toHaveBeenLastCalledWith({ filter: "archived", limit: 25, cursor: null });
-    expect(screen.getByRole("combobox", { name: "Items per page" })).toHaveValue("25");
+    expect(pagination().getByRole("combobox", { name: "Items per page" })).toHaveValue("25");
   });
 
   it("ignores an older page-size response and retries with the selected size", async () => {
@@ -186,17 +188,119 @@ describe("ContentItemsPage", () => {
       .mockRejectedValueOnce(new Error("offline"))
       .mockResolvedValue({ next_cursor: null, content_items: [item({ title: "Resized page" })] });
     render(<ContentItemsPage />);
-    await user.selectOptions(screen.getByRole("combobox", { name: "Items per page" }), "100");
+    await user.selectOptions(pagination().getByRole("combobox", { name: "Items per page" }), "100");
     await screen.findByText(/Content Items could not be loaded/);
     await act(async () => { resolveOld({ next_cursor: "stale", content_items: [item({ title: "Old size" })] }); });
     expect(screen.queryByRole("link", { name: "Old size" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Retry" }));
     await screen.findByRole("link", { name: "Resized page" });
     expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 100, cursor: null });
-    expect(screen.getByRole("combobox", { name: "Items per page" })).toHaveValue("100");
-    await user.selectOptions(screen.getByRole("combobox", { name: "Items per page" }), "10");
+    expect(pagination().getByRole("combobox", { name: "Items per page" })).toHaveValue("100");
+    await user.selectOptions(pagination().getByRole("combobox", { name: "Items per page" }), "10");
     await screen.findByRole("link", { name: "Resized page" });
     expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 10, cursor: null });
+  });
+
+  it("keeps the top and bottom controls synchronized around the item list", async () => {
+    const user = userEvent.setup();
+    listContentItems.mockResolvedValueOnce({ next_cursor: "two", content_items: [item({})] })
+      .mockResolvedValue({ next_cursor: null, content_items: [item({ title: "Second page" })] });
+    render(<ContentItemsPage />);
+    const firstItem = await screen.findByRole("link", { name: "First article" });
+    const top = screen.getByRole("navigation", { name: "Pagination top" });
+    const bottom = screen.getByRole("navigation", { name: "Pagination bottom" });
+    expect(top.compareDocumentPosition(firstItem) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(firstItem.compareDocumentPosition(bottom) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await user.click(within(bottom).getByRole("button", { name: "Next" }));
+    await screen.findByRole("link", { name: "Second page" });
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 50, cursor: "two" });
+    for (const controls of [top, bottom]) {
+      expect(within(controls).getByRole("button", { name: "Previous" })).toBeEnabled();
+      expect(within(controls).getByRole("button", { name: "Next" })).toBeDisabled();
+    }
+    await user.selectOptions(within(bottom).getByRole("combobox", { name: "Items per page" }), "25");
+    await screen.findByText(/Page 1/);
+    expect(within(top).getByRole("combobox", { name: "Items per page" })).toHaveValue("25");
+    expect(within(bottom).getByRole("combobox", { name: "Items per page" })).toHaveValue("25");
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 25, cursor: null });
+  });
+
+  it("offers visited pages plus the next page and supports jumps from both control bars", async () => {
+    const user = userEvent.setup();
+    listContentItems.mockImplementation(async ({ filter, cursor }) => ({
+      content_items: [item({ title: cursor === "three" ? "Third page" : "Article" })],
+      next_cursor: filter === "archived" ? null : cursor === null ? "two" : cursor === "two" ? "three" : null,
+    }));
+    render(<ContentItemsPage />);
+    await screen.findByText(/Page 1/);
+    expect(pagination().getByRole("button", { name: "Go to page 1" })).toHaveAttribute("aria-current", "page");
+    expect(pagination().getByRole("button", { name: "Go to page 2" })).toBeEnabled();
+    expect(pagination().queryByRole("button", { name: "Go to page 3" })).not.toBeInTheDocument();
+    await user.click(pagination().getByRole("button", { name: "Go to page 2" }));
+    await screen.findByText(/Page 2/);
+    const bottom = within(screen.getByRole("navigation", { name: "Pagination bottom" }));
+    await user.click(bottom.getByRole("button", { name: "Go to page 3" }));
+    await screen.findByText(/Page 3/);
+    expect(bottom.queryByRole("button", { name: "Go to page 4" })).not.toBeInTheDocument();
+    expect(bottom.getByRole("button", { name: "Next" })).toBeDisabled();
+    await user.click(pagination().getByRole("button", { name: "Go to page 1" }));
+    await screen.findByText(/Page 1/);
+    expect(bottom.getByRole("button", { name: "Go to page 3" })).toBeEnabled();
+    await user.click(bottom.getByRole("button", { name: "Go to page 3" }));
+    await screen.findByText(/Page 3/);
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 50, cursor: "three" });
+    expect(listContentItems).toHaveBeenCalledTimes(5);
+    for (const controls of [pagination(), bottom]) {
+      expect(controls.getByRole("button", { name: "Go to page 3" })).toHaveAttribute("aria-current", "page");
+    }
+    await user.selectOptions(bottom.getByRole("combobox", { name: "Items per page" }), "10");
+    await screen.findByText(/Page 1/);
+    expect(pagination().queryByRole("button", { name: "Go to page 3" })).not.toBeInTheDocument();
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 10, cursor: null });
+    await user.click(screen.getByRole("button", { name: "Archived" }));
+    await screen.findByText(/Page 1/);
+    expect(pagination().queryByRole("button", { name: "Go to page 2" })).not.toBeInTheDocument();
+  });
+
+  it("retries a failed numbered jump without marking the failed page current", async () => {
+    const user = userEvent.setup();
+    listContentItems.mockResolvedValueOnce({ next_cursor: "two", content_items: [item({})] })
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({ next_cursor: null, content_items: [item({})] });
+    render(<ContentItemsPage />);
+    await screen.findByText(/Page 1/);
+    await user.click(pagination().getByRole("button", { name: "Go to page 2" }));
+    await screen.findByText(/Content Items could not be loaded/);
+    const failedPage = pagination().getByRole("button", { name: "Go to page 2" });
+    expect(failedPage).not.toHaveAttribute("aria-current");
+    expect(failedPage).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText(/Page 2/);
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 50, cursor: "two" });
+    expect(pagination().getByRole("button", { name: "Go to page 1" })).toBeEnabled();
+    expect(pagination().queryByRole("button", { name: "Go to page 3" })).not.toBeInTheDocument();
+  });
+
+  it("discards later page positions if a revisited page returns a changed boundary", async () => {
+    const user = userEvent.setup();
+    listContentItems.mockResolvedValueOnce({ next_cursor: "two", content_items: [item({})] })
+      .mockResolvedValueOnce({ next_cursor: "three", content_items: [item({})] })
+      .mockResolvedValueOnce({ next_cursor: null, content_items: [item({})] })
+      .mockResolvedValueOnce({ next_cursor: "changed-two", content_items: [item({})] })
+      .mockResolvedValueOnce({ next_cursor: null, content_items: [] });
+    render(<ContentItemsPage />);
+    await screen.findByText(/Page 1/);
+    await user.click(pagination().getByRole("button", { name: "Go to page 2" }));
+    await screen.findByText(/Page 2/);
+    await user.click(pagination().getByRole("button", { name: "Go to page 3" }));
+    await screen.findByText(/Page 3/);
+    await user.click(pagination().getByRole("button", { name: "Go to page 1" }));
+    await screen.findByText(/Page 1/);
+    expect(pagination().queryByRole("button", { name: "Go to page 3" })).not.toBeInTheDocument();
+    await user.click(pagination().getByRole("button", { name: "Go to page 2" }));
+    await screen.findByText(/Showing 0 items/);
+    expect(listContentItems).toHaveBeenLastCalledWith({ filter: "all", limit: 50, cursor: "changed-two" });
+    expect(pagination().getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
   it("ignores a stale response and disables duplicate navigation during loading", async () => {
@@ -205,13 +309,13 @@ describe("ContentItemsPage", () => {
     listContentItems.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve; }))
       .mockResolvedValueOnce({ next_cursor: null, content_items: [item({title: "Current filter"})] });
     render(<ContentItemsPage />);
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Previous" })).toBeDisabled();
+    expect(pagination().getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(pagination().getByRole("button", { name: "Previous" })).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Archived" }));
     await screen.findByRole("link", {name: "Current filter"});
     await act(async () => { resolveOld({ next_cursor: "stale", content_items: [item({title: "Stale page"})] }); });
     expect(screen.queryByRole("link", {name: "Stale page"})).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Next" })).toBeDisabled();
+    expect(pagination().getByRole("button", { name: "Next" })).toBeDisabled();
   });
 
 });

@@ -508,6 +508,27 @@ dd {
   padding: 0;
 }
 
+.pagination-pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+
+.pagination-page {
+  min-width: 36px;
+  padding: 0 8px;
+}
+
+.pagination-page:disabled {
+  cursor: default;
+}
+
+.pagination-page:disabled:not(.selected) {
+  opacity: 0.65;
+}
+
 .pagination-icon-button:disabled {
   cursor: default;
 }

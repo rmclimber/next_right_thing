@@ -1,5 +1,21 @@
 # Planning decision log
 
+## Pagination control placement follow-up — 2026-11-24
+
+- User requested matching pagination widgets at the top and bottom of the display
+  plus numbered Go To Page controls. Top/bottom placement uses the existing shared
+  page/filter/size state; both navigation regions have distinct accessible labels.
+- User selected visited pages plus the next available page using existing cursors.
+  Both bars show numbered buttons with the current successful page highlighted.
+  Direct numbered jumps use saved cursors; unchanged boundaries retain later
+  positions, changed/final boundaries invalidate downstream history. Filter/size
+  changes reset history; failed/stale responses do not advance it.
+- No total count, unknown-page jump, backend change or snapshot is introduced.
+- Local baseline `555ca6a` contains the earlier compact controls/page-size change.
+  The user subsequently authorized committing and pushing the placement/numbered
+  navigation changes and planning documents directly to main on 2026-11-24.
+  Deployment outcome remains unverified; no manual deployment is requested.
+
 Recorded 2026-11-19; updated 2026-11-24. Dates below distinguish recording from an original
 decision date when known. This log indexes constraints; substantial architecture
 decisions remain in [ADRs](../adr/). Entries do not authorize deployments.
